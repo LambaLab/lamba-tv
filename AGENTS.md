@@ -16,7 +16,7 @@ One folder, the app's id as its name (2 to 24 small letters, digits or dashes, s
   tv.html        the big screen: the authority. It keeps time and state (Lamba.store) and decides
   phone.html     the owner's controls (view controller) and each guest's phone (view guest)
   icon.svg       its icon; card.svg its 320 x 180 picture
-  clips/         2 real clips: <name>.mp4 (540 x 920 H.264, 6 to 14 s) and <name>-poster.webp
+  clips/         2 or more real clips: <name>.mp4 (540 x 920 H.264, 6 to 14 s) and <name>-poster.webp
 ```
 
 Plain HTML and JavaScript, no build step, no packages, no frameworks. Every page loads the SDK with
@@ -45,12 +45,35 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
 6. **Every view has its own address.** The host keeps the settings drawer's place in the address (`&g=&p=`): put
    settings in lamba.json groups, not in screens of your own. Keep the phone page one screen per view; what it
    shows comes from the TV's state, so a reload lands in the same place.
-7. **Two real clips** of the app before it is uploaded (the starter's placeholders are refused on upload).
+7. **Two real clips** of the app before it is uploaded (the starter's placeholders are refused on upload):
+   `node lamba-clips.mjs <app>` records them.
 8. **Words people read:** no en dash or em dash anywhere (use a comma or a full stop), "they" for one person, plain
    short sentences, never the one word Lamba avoids for many colours (say "every colour"). Any set of animals
    includes a sloth. Every list of colours ends with "pick your own colour". Choosing a sound plays a short sample.
 9. **Big and calm on the TV.** Size type by screen height (`vh`): headings 10 to 14 vh, body at least 4 vh. Motion
    is slow and stops under `prefers-reduced-motion`. Safe for a family room: no violence, fear, ads or purchases.
+
+## Ask first
+
+Before any code, ask the developer in one short message, in plain words, with your suggestion for each (they may
+just say yes):
+
+- Who is it for: everyone, families, or made for kids?
+- Public on Lamba, or private to their organization?
+- Its name?
+- Phones as controllers? For how many players?
+
+Then build, and never ask these again. What each answer sets:
+
+| answer | set |
+| --- | --- |
+| everyone | `age` `"all"` (`"7+"` or `"13+"` only if it needs older players) |
+| families | `age` `"all"` or `"7+"`, calm for children watching |
+| made for kids | `category` `"kids"`, `age` `"all"` or `"7+"`, `outside` empty, no links out |
+| public | reviewed by a person at Lamba before it is live: `lamba_submit` |
+| private | only people at their email's domain, or named emails; the automatic check only, no review: `lamba_private`, then `lamba_make_live` |
+| the name | `name` (24 letters), and the id from it |
+| phones, players | `guests` and `players` `{ min, max }` (0 when only the owner's phone controls it) |
 
 ## The loop
 
@@ -58,8 +81,8 @@ Work in this order and do not skip a step:
 
 1. **Read first.** `lamba_rules` and `lamba_docs` (the Lamba MCP server) or https://lamba.tv/devs/llms-full.txt.
    Change only the app's folder.
-2. **Edit** lamba.json, tv.html, phone.html. Fill the whole listing in lamba.json for the players: `name`, `sub`,
-   `about`, `category`, `age`, `players`, `icon`, `card`, two `clips`, and `page.facts` and `page.about`.
+2. **Edit** lamba.json, tv.html, phone.html. Fill the whole listing in lamba.json from the answers and the idea:
+   `name`, `sub`, `about`, `category`, `age`, `players`, `icon`, `card`, and `page.facts` and `page.about`.
 3. **Check:** `node lamba-check.mjs <app>`. Fix every line it prints. It is the check Lamba's server runs.
 4. **Test:** `node lamba-test.mjs <app>`. It runs the app in the real simulator (the TV at 1920 x 1080 and
    960 x 540, the owner's phone, a guest) and writes `lamba-test-shots/summary.md` and screenshots.
@@ -75,11 +98,14 @@ Work in this order and do not skip a step:
    - Calm colours, strong contrast.
    - A guest is in with one tap: no forms, no accounts.
    - It runs on old TVs, and the phone page never zooms.
-7. **Upload** only when check, test and the checklist pass: `node lamba-check.mjs <app> --upload` (needs `LAMBA_KEY`), or the
+7. **Clips:** `node lamba-clips.mjs <app>` records 2 or 3 clips in the simulator, in the exact format, and lists
+   them in lamba.json. Look at each poster, and write captions that say what each clip shows.
+8. **Upload** only when check, test and the checklist pass: `node lamba-check.mjs <app> --upload` (needs `LAMBA_KEY`), or the
    `lamba_upload` tool. Read the result and `lamba_status`.
-8. **Ask, then submit.** When the developer wants to submit: `lamba_listing`, then ask them its questions one at a
-   time in plain words (they are not programmers), fill lamba.json (`lamba_profile` for who made it), upload again,
-   show a short summary of what players will see, and `lamba_submit` (or `lamba_make_live`, private apps) when they say yes.
+9. **Submit from the answers.** When the developer wants to submit: `lamba_listing`. Fill its gaps from the first
+   answers and the app (write the texts yourself), and ask only what is still unknown (who made it: `lamba_profile`).
+   Upload again, show a short summary of what players will see, and when they say yes: `lamba_submit`, or for a
+   private app `lamba_private` then `lamba_make_live`.
 
 ## The Lamba MCP server
 
@@ -96,6 +122,7 @@ developer, only on their own apps:
 | `lamba_apps` | list the developer's apps |
 | `lamba_listing` | what players will see, and the questions to ask the developer before submitting |
 | `lamba_profile` | save who made it (their name or studio), after asking them |
+| `lamba_private` | make it private: their own email's domain, named people |
 | `lamba_submit`, `lamba_make_live` | only when the developer asks |
 
 Never print, log or commit the key. It lives in the `LAMBA_KEY` environment variable.

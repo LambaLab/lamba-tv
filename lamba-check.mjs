@@ -6084,6 +6084,9 @@ function checkRules(m, dir) {
   if (m.guests && !sc.phone) say("an app guests join needs screens.phone (the guests' page)");
   if (!AGES.includes(m.age)) say("age must be one of " + AGES.join(", "));
   if (m.category !== undefined && !CATEGORIES.includes(m.category)) say("category must be one of " + CATEGORIES.join(", "));
+  // made for kids: for children's ages, and nothing reached outside Lamba
+  if (m.category === "kids" && m.age === "13+") say("a kids app is for children: age \"all\" or \"7+\"");
+  if (m.category === "kids" && Array.isArray(m.outside) && m.outside.length) say("a kids app reaches nothing outside Lamba: outside must be empty");
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PERMISSIONS.includes(p))) say("permissions must be a list of " + PERMISSIONS.join(", "));
   if (!Array.isArray(m.outside)) say("outside must be a list of https addresses (empty for none)");
   else m.outside.forEach(o => { if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(o || "")) say("outside: " + o + " must be https://host (no path)"); });
@@ -6487,7 +6490,7 @@ return { LIMITS, TYPES, PLACEHOLDER_CLIPS, typeOf, checkUpload };
 // ---------- the command ----------
 // node lamba-check.mjs [folder ...]   with no folder: every folder here that has a lamba.json (or this one)
 // Each folder is checked as Lamba's server checks the zip you upload: the same code (above), on the same files.
-const RESERVED = ["admin","alarm","app","apps","art","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","graffiti","home","lamba","mini-golf","motion-lab","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-hello","shell","stopwatch","tictactoe","timers","welcome","winter-window","write-along","x"];
+const RESERVED = ["admin","alarm","app","apps","art","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","graffiti","home","lamba","mini-golf","motion-lab","now-playing","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-hello","shell","stopwatch","tictactoe","timers","welcome","winter-window","write-along","x","youtube"];
 const SKIP = n => n === "node_modules" || n.startsWith(".");   // hidden files and folders stay out of an app's zip
 function walk(dir) {
   const out = [], hidden = [];

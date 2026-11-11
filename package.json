@@ -1,12 +1,16 @@
 {
  "name": "lamba-app",
  "private": true,
- "description": "A Lamba TV app. The app itself is plain files in its folder; this file only holds the self-test's tool.",
+ "description": "A Lamba TV app. The app itself is plain files in its folder; this file only holds the tools of the self-test and the clips.",
  "scripts": {
   "check": "node lamba-check.mjs",
-  "test": "node lamba-test.mjs"
+  "test": "node lamba-test.mjs",
+  "clips": "node lamba-clips.mjs"
  },
  "devDependencies": {
   "playwright": "1.58.2"
+ },
+ "optionalDependencies": {
+  "ffmpeg-static": "5.3.0"
  }
 }

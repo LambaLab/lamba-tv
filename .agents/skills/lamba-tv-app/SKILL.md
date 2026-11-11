@@ -11,9 +11,10 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
 
 ## Steps
 
-1. **Understand the ask.** One app, one function: a Lamba app does one thing well. One sentence: what the TV shows, what each phone does, who plays (guests or only the
-   owner), what the owner can change in settings. If the developer gave only an idea, decide these yourself in the
-   calm Lamba way and say what you chose.
+1. **Ask first.** Before any code, one short message in plain words, with your suggestion for each: who it is for
+   (everyone, families, or made for kids), public on Lamba or private to their organization, its name, and whether
+   phones are the controllers and for how many players. Then never ask these again; AGENTS.md ("Ask first") says
+   what each answer sets. One app, one function: decide the rest yourself in the calm Lamba way and say what you chose.
 2. **Read** `lamba_rules`, and `lamba_docs` for each SDK call you use (or `references/patterns.md` here, and
    https://lamba.tv/devs/llms-full.txt). Types: `lamba.d.ts`. lamba.json: `lamba.schema.json`. No
    `lamba-check.mjs` or `lamba-test.mjs` next to the app? Start from the starter kit
@@ -31,19 +32,19 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
    says nothing to fix and the screenshots look right: big type readable from the sofa, nothing cut off, nothing
    crowded, the main button where the thumb rests. Then go through the design checklist in `references/review.md`
    and fix what fails.
-9. **Clips.** The starter's clips are placeholders, and an upload with them is refused. Two real clips are needed
-   (540 x 920 H.264 mp4, 6 to 14 s, and a -poster.webp of the first frame each), recorded from the app running:
-   a phone's screen recording, or the simulator. Ask the developer which. If they ask you to record them, record
-   the app in the simulator that lamba-test.mjs serves (Playwright video of the TV with guests playing, and of a
-   guest's phone), then make 540 x 920 H.264 with ffmpeg; keep the recording scripts outside the app's folder.
-   Never draw, generate or reuse clips that don't show this app.
+9. **Clips.** The starter's clips are placeholders, and an upload with them is refused. Run
+   `node lamba-clips.mjs <app>`: it plays the app in the simulator (random taps, or `--script steps.json` for a
+   session that shows it at its best) and writes 2 or 3 clips in the exact format, listed in lamba.json. Look at
+   each `-poster.webp`, and write captions that say what each clip shows. Never draw, generate or reuse clips that
+   don't show this app.
 10. **Upload** when the developer wants: `node lamba-check.mjs <app> --upload` (with `LAMBA_KEY` set) or
-    `lamba_upload`. Then `lamba_status`. Submit only when the developer asks: `lamba_listing` first, ask its questions one at a time, then `lamba_submit`.
+    `lamba_upload`. Then `lamba_status`. Submit only when the developer asks: `lamba_listing`, fill its gaps from the
+    first answers, ask only what is still unknown, then `lamba_submit` (private: `lamba_private`, `lamba_make_live`).
 
 ## Before you say it is done
 
 Go through `references/review.md`: it is what the person reviewing at Lamba checks. Report what you checked, what
-the test said, and what the developer still has to do (clips, a key, submitting).
+the test said, and what the developer still has to do (a key, submitting).
 
 ## Files here
 

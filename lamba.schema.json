@@ -669,6 +669,32 @@
      }
     }
    }
+  },
+  {
+   "if": {
+    "required": [
+     "category"
+    ],
+    "properties": {
+     "category": {
+      "const": "kids"
+     }
+    }
+   },
+   "then": {
+    "properties": {
+     "age": {
+      "enum": [
+       "all",
+       "7+"
+      ]
+     },
+     "outside": {
+      "maxItems": 0
+     }
+    }
+   },
+   "description": "A kids app: age all or 7+, and no outside addresses"
   }
  ],
  "$defs": {

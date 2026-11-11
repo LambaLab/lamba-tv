@@ -43,6 +43,7 @@ AGENTS.md, CLAUDE.md    the rules for your AI agent
 .mcp.json .codex/       the Lamba connection (with your LAMBA_KEY)
 lamba-check.mjs         the check Lamba runs on upload, one file (Node 18 or newer)
 lamba-test.mjs          the self-test: your app in the simulator, headless, with screenshots
+lamba-clips.mjs         your app's clips for its page, recorded in the simulator
 lamba.d.ts              the SDK's types; lamba.schema.json: every field of lamba.json
 my-app/                 a whole app that already works: start here
 examples/               more apps to read and copy
@@ -92,8 +93,8 @@ node lamba-test.mjs my-app
 It runs your app as the TV (at 1920 x 1080 and the old TV's 960 x 540), the owner's phone and a guest, taps through
 the settings, and writes `lamba-test-shots/summary.md` with screenshots. Look at them.
 
-Before you submit, record two real clips of your app (540 x 920, H.264, 6 to 14 seconds) and replace the two
-placeholders in `clips/`, each with its `-poster.webp`.
+Before you submit, make your app's clips: `node lamba-clips.mjs my-app` records them in the simulator and puts them in
+`clips/` in place of the two placeholders. Then write their captions in `lamba.json`.
 
 ### 5. Send it
 
