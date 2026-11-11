@@ -58,7 +58,8 @@ Work in this order and do not skip a step:
 
 1. **Read first.** `lamba_rules` and `lamba_docs` (the Lamba MCP server) or https://lamba.tv/devs/llms-full.txt.
    Change only the app's folder.
-2. **Edit** lamba.json, tv.html, phone.html.
+2. **Edit** lamba.json, tv.html, phone.html. Fill the whole listing in lamba.json for the players: `name`, `sub`,
+   `about`, `category`, `age`, `players`, `icon`, `card`, two `clips`, and `page.facts` and `page.about`.
 3. **Check:** `node lamba-check.mjs <app>`. Fix every line it prints. It is the check Lamba's server runs.
 4. **Test:** `node lamba-test.mjs <app>`. It runs the app in the real simulator (the TV at 1920 x 1080 and
    960 x 540, the owner's phone, a guest) and writes `lamba-test-shots/summary.md` and screenshots.
@@ -76,8 +77,9 @@ Work in this order and do not skip a step:
    - It runs on old TVs, and the phone page never zooms.
 7. **Upload** only when check, test and the checklist pass: `node lamba-check.mjs <app> --upload` (needs `LAMBA_KEY`), or the
    `lamba_upload` tool. Read the result and `lamba_status`.
-8. **Submit for review** (`lamba_submit`) or **make live** (`lamba_make_live`, private apps) only when the
-   developer asks you to.
+8. **Ask, then submit.** When the developer wants to submit: `lamba_listing`, then ask them its questions one at a
+   time in plain words (they are not programmers), fill lamba.json (`lamba_profile` for who made it), upload again,
+   show a short summary of what players will see, and `lamba_submit` (or `lamba_make_live`, private apps) when they say yes.
 
 ## The Lamba MCP server
 
@@ -92,6 +94,8 @@ developer, only on their own apps:
 | `lamba_upload` | upload a version (small apps; big ones: `node lamba-check.mjs <app> --upload`) |
 | `lamba_status` | see versions, their states, what to fix and the reviewer's notes |
 | `lamba_apps` | list the developer's apps |
+| `lamba_listing` | what players will see, and the questions to ask the developer before submitting |
+| `lamba_profile` | save who made it (their name or studio), after asking them |
 | `lamba_submit`, `lamba_make_live` | only when the developer asks |
 
 Never print, log or commit the key. It lives in the `LAMBA_KEY` environment variable.

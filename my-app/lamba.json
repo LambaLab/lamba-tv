@@ -17,6 +17,7 @@
  "players": { "min": 0, "max": 4 },
  "guests": true,
  "age": "all",
+ "category": "party",
  "permissions": ["sound"],
  "outside": [],
  "settings": {

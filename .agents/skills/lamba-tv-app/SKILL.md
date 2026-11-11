@@ -38,7 +38,7 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
    guest's phone), then make 540 x 920 H.264 with ffmpeg; keep the recording scripts outside the app's folder.
    Never draw, generate or reuse clips that don't show this app.
 10. **Upload** when the developer wants: `node lamba-check.mjs <app> --upload` (with `LAMBA_KEY` set) or
-    `lamba_upload`. Then `lamba_status`. Submit (`lamba_submit`) only when the developer asks.
+    `lamba_upload`. Then `lamba_status`. Submit only when the developer asks: `lamba_listing` first, ask its questions one at a time, then `lamba_submit`.
 
 ## Before you say it is done
 

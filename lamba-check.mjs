@@ -6032,6 +6032,8 @@ const HOST_KEYS = ["frame", "frc", "fw", "mw", "matc", "fday", "fown", "fall", "
 const TYPES = ["choice", "switch", "number", "text", "list", "colour"];
 const PERMISSIONS = ["sound", "camera", "motion", "country"];
 const AGES = ["all", "7+", "13+"];
+// the app's shelf on the phone and the showcase (optional for now; the listing on /devs asks for it)
+const CATEGORIES = ["games", "party", "kids", "learning", "art", "music", "clocks", "calm", "photos", "sports", "tools"];
 const HOST_PARTS = ["frame", "mat", "brightness"];
 const PICTURE_FILE = /^[a-z0-9][a-z0-9_./-]{0,80}\.(svg|png|webp|jpg|jpeg)$/i;
 
@@ -6081,6 +6083,7 @@ function checkRules(m, dir) {
   if (m.guests && !(pl.max > 0)) say("an app guests join needs players.max of 1 or more");
   if (m.guests && !sc.phone) say("an app guests join needs screens.phone (the guests' page)");
   if (!AGES.includes(m.age)) say("age must be one of " + AGES.join(", "));
+  if (m.category !== undefined && !CATEGORIES.includes(m.category)) say("category must be one of " + CATEGORIES.join(", "));
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PERMISSIONS.includes(p))) say("permissions must be a list of " + PERMISSIONS.join(", "));
   if (!Array.isArray(m.outside)) say("outside must be a list of https addresses (empty for none)");
   else m.outside.forEach(o => { if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(o || "")) say("outside: " + o + " must be https://host (no path)"); });
@@ -6204,7 +6207,7 @@ function registryEntry(m) {
 }
 
 
-return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, HOST_PARTS, inside, checkRules, registryEntry };
+return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, HOST_PARTS, inside, checkRules, registryEntry };
 })();
 
 // ---- tools/sdk_check.mjs ----

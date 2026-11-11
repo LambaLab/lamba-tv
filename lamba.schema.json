@@ -274,6 +274,22 @@
     "13+"
    ]
   },
+  "category": {
+   "enum": [
+    "games",
+    "party",
+    "kids",
+    "learning",
+    "art",
+    "music",
+    "clocks",
+    "calm",
+    "photos",
+    "sports",
+    "tools"
+   ],
+   "description": "Where players find it: one of games, party, kids, learning, art, music, clocks, calm, photos, sports, tools"
+  },
   "permissions": {
    "type": "array",
    "items": {
