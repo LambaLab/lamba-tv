@@ -10,7 +10,7 @@ This repo is everything you need to build one, made for building with an AI codi
 Tell Claude Code or Codex what you want, and where to start:
 
 ```
-Build me a Lamba TV app that lets everyone answer trivia on their phone. Use github.com/LambaLab/lamba-tv
+Build me a Lamba TV app: a trivia game everyone answers on their phone. Use github.com/LambaLab/lamba-tv
 ```
 
 That's all. Your agent clones this repo, reads `AGENTS.md` and the `lamba-tv-app` skill, builds the app, checks and
