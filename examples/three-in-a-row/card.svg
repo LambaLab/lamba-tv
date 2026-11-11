@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><style>
+.m { opacity: 0; animation: in 6s ease infinite; }
+.m2 { animation-delay: 1s; } .m3 { animation-delay: 2s; }
+@keyframes in { 10%, 85% { opacity: 1; } 95% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .m { animation: none; opacity: 1; } }
+</style>
+<rect x="56" y="22" width="208" height="134" fill="#141416"/><rect x="64" y="30" width="192" height="118" fill="#1c1f4a"/>
+<g stroke="#e8e9ff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"><path d="M148 45v88M172 45v88M118 75h84M118 103h84"/></g>
+<g stroke-width="3.2" stroke-linecap="round" fill="none">
+<path class="m" d="M126 52l14 14M140 52l-14 14" stroke="#ffd36e"/>
+<circle class="m m2" cx="160" cy="89" r="8" stroke="#8fd3ff"/>
+<path class="m m3" d="M180 112l14 14M194 112l-14 14" stroke="#ffd36e"/>
+</g>
+</svg>

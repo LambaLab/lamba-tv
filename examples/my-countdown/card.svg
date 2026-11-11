@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><style>
+.cd-arc { animation: cdArc 6s linear infinite; }
+@keyframes cdArc { from { stroke-dashoffset: 108; } to { stroke-dashoffset: 114; } }
+.d { animation: d 10s steps(10) infinite; }
+@keyframes d { from { transform: translateY(0); } to { transform: translateY(-300px); } }
+@media (prefers-reduced-motion: reduce) { .cd-arc, .d { animation: none; } }
+</style>
+<rect x="56" y="22" width="208" height="134" fill="#141416"/><rect x="64" y="30" width="192" height="118" fill="#000"/>
+<circle cx="160" cy="89" r="46" fill="none" stroke="rgba(236,235,230,.12)" stroke-width="2"/>
+<circle class="cd-arc" cx="160" cy="89" r="46" fill="none" stroke="#ffb547" stroke-width="2" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="108" transform="rotate(-90 160 89)"/>
+<text x="160" y="72" text-anchor="middle" font-family="Manrope, Helvetica Neue, Arial, sans-serif" font-size="6.5" fill="rgba(236,235,230,.55)">5 minutes</text>
+<text x="155" y="100" text-anchor="end" font-family="Manrope, Helvetica Neue, Arial, sans-serif" font-weight="300" font-size="30" fill="#ecebe6">3:0</text>
+<svg x="155" y="72" width="20" height="30" viewBox="0 0 20 30"><g class="d"><text font-family="Manrope, Helvetica Neue, Arial, sans-serif" font-weight="300" font-size="30" fill="#ecebe6"><tspan x="0" y="28">9</tspan><tspan x="0" y="58">8</tspan><tspan x="0" y="88">7</tspan><tspan x="0" y="118">6</tspan><tspan x="0" y="148">5</tspan><tspan x="0" y="178">4</tspan><tspan x="0" y="208">3</tspan><tspan x="0" y="238">2</tspan><tspan x="0" y="268">1</tspan><tspan x="0" y="298">0</tspan></text></g></svg>
+<text x="160" y="114" text-anchor="middle" font-family="Manrope, Helvetica Neue, Arial, sans-serif" font-size="6.5" fill="rgba(236,235,230,.55)">Ends at 2:35 PM</text>
+</svg>

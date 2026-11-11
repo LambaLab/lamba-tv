@@ -1,0 +1,9 @@
+{
+ "mcpServers": {
+  "lamba": {
+   "type": "http",
+   "url": "${LAMBA_MCP_URL:-https://lamba.tv/devs/mcp}",
+   "headers": { "Authorization": "Bearer ${LAMBA_KEY}" }
+  }
+ }
+}

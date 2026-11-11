@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three in a row</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700&display=swap">
+<!--
+  Three in a row, the TV page: a turn game for two on the Lamba SDK (docs: https://lamba.tv/devs/docs/).
+
+  How it works:
+    - The first two guests to join are the players: L.players[0] plays X, L.players[1] plays O. More guests wait in
+      line (the host seats players.max = 2 and keeps the rest waiting).
+    - The TV is the referee. A phone only asks: { type: "move", cell: 0..8 }. The TV checks it is that player's turn
+      and the square is free, then changes the game, saves it in Lamba.store "game" (so a TV that restarts keeps the
+      game, and the owner's phone follows it) and tells each player's phone with { type: "game", g, you }.
+    - { type: "again" } starts a new game: a player once a game is over, the owner at any time. { type: "reset" } (the
+      owner) sets the scores to zero. { type: "hi" } from a phone that just opened: the TV answers it with the game.
+  Views: "screen" is the real TV and the only one that decides. "preview" (the copy on the owner's phone) and
+  "picture" (the small pictures in the settings drawer) only draw.
+  Old TV browsers (Chrome 61): ES5 only, no flex gap (grid-gap is fine), no clamp(). Sound with Web Audio.
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; }
+body { display: -webkit-box; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; -webkit-box-align: center; align-items: center; -webkit-box-pack: center; justify-content: center;
+  background: var(--bg); color: var(--ink); transition: background-color .6s ease, color .6s ease; }
+.row { display: -webkit-box; display: flex; -webkit-box-align: center; align-items: center; }
+.side { width: 30vh; text-align: center; }
+.side .mk { display: block; width: 12vh; height: 12vh; margin: 0 auto 2vh; }
+.side b { display: block; font-size: 5vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side i { display: block; margin-top: 1vh; font-style: normal; font-size: 9vh; font-weight: 700; opacity: .8; }
+.side.now b { text-decoration: underline; text-decoration-thickness: .5vh; text-underline-offset: 1.2vh; }
+.board { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-gap: 1.4vh; width: 66vh; height: 66vh; margin: 0 6vh; background: var(--line); }
+.cell { position: relative; background: var(--bg); transition: background-color .6s ease; }
+.cell svg { position: absolute; left: 14%; top: 14%; width: 72%; height: 72%; overflow: visible; }
+.cell.win { background: var(--hi); }
+.x { stroke: var(--x); } .o { stroke: var(--o); }
+svg path, svg circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+.new path, .new circle { stroke-dasharray: 160; -webkit-animation: draw .45s ease-out both; animation: draw .45s ease-out both; }
+@-webkit-keyframes draw { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
+@keyframes draw { from { stroke-dashoffset: 160; } to { stroke-dashoffset: 0; } }
+#line { margin: 5vh 0 0; font-size: 5vh; font-weight: 500; opacity: .85; min-height: 6vh; }
+@media (prefers-reduced-motion: reduce) { .new path, .new circle { -webkit-animation: none; animation: none; } }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="side" id="sx"><svg class="mk x" viewBox="0 0 100 100"><path d="M18 18L82 82M82 18L18 82"/></svg><b id="nx">X</b><i id="cx">0</i></div>
+  <div class="board" id="board"></div>
+  <div class="side" id="so"><svg class="mk o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="34"/></svg><b id="no">O</b><i id="co">0</i></div>
+</div>
+<p id="line"></p>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LOOKS = {   // each look's colours: background, ink, the lines, X, O, a winning square
+    chalk: { bg: "#1b1d24", ink: "#f2f3f5", line: "#5a5e6b", x: "#ffd36e", o: "#8fd3ff", hi: "#2c3140" },
+    paper: { bg: "#f3ead8", ink: "#2b2620", line: "#b9ab90", x: "#c4512b", o: "#2c5d8f", hi: "#e8d9b8" }
+  };
+  var LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+  var MARK = { x: '<svg class="x" viewBox="0 0 100 100"><path d="M18 18L82 82M82 18L18 82"/></svg>', o: '<svg class="o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="34"/></svg>' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  Lamba.ready(function (L) {
+    var view = L.screen.view, isTv = view === "screen";
+    // b: the nine squares ("-" free, "x", "o"); turn: whose turn; won: "", "x", "o" or "draw"; line: the winning three
+    function fresh(prev) {
+      var starter = "x";
+      if (prev && L.settings.first === "turns") starter = prev.starter === "x" ? "o" : "x";
+      return { b: "---------", turn: starter, starter: starter, won: "", line: null, score: prev ? prev.score : { x: 0, o: 0 }, names: prev ? prev.names : { x: "", o: "" } };
+    }
+    var g = view === "picture" ? { b: "x-o-x-o-x", turn: "o", starter: "x", won: "x", line: [0, 4, 8], score: { x: 1, o: 0 }, names: { x: "Sam", o: "Alex" } }
+      : L.store.get("game") || fresh(null);
+    var last = -1;   // the square played last (it draws itself in)
+
+    var seatOf = function (id) { return L.players[0] && L.players[0].id === id ? "x" : L.players[1] && L.players[1].id === id ? "o" : ""; };
+    var nameOf = function (s) { return g.names[s] || (s === "x" ? "X" : "O"); };
+    var winner = function (b) { for (var i = 0; i < LINES.length; i++) { var l = LINES[i]; if (b.charAt(l[0]) !== "-" && b.charAt(l[0]) === b.charAt(l[1]) && b.charAt(l[1]) === b.charAt(l[2])) return l; } return null; };
+
+    // ---- drawing (every view) ----
+    function paint() {
+      var c = LOOKS[L.settings.look] || LOOKS.chalk, st = document.documentElement.style, k;
+      for (k in c) st.setProperty("--" + k, c[k]);
+      L.colours({ board: c.bg, ink: c.ink });
+    }
+    function draw() {
+      var html = "";
+      for (var i = 0; i < 9; i++) {
+        var s = g.b.charAt(i), win = g.line && g.line.indexOf(i) > -1;
+        html += '<div class="cell' + (win ? " win" : "") + (i === last ? " new" : "") + '">' + (s === "-" ? "" : MARK[s]) + "</div>";
+      }
+      $("board").innerHTML = html;
+      $("nx").textContent = nameOf("x"); $("no").textContent = nameOf("o");   // textContent: names come from people
+      $("cx").textContent = g.score.x; $("co").textContent = g.score.o;
+      $("sx").className = "side" + (!g.won && g.turn === "x" ? " now" : ""); $("so").className = "side" + (!g.won && g.turn === "o" ? " now" : "");
+      var seated = view === "picture" ? 2 : L.players.length;
+      $("line").textContent = g.won === "draw" ? "A draw. Tap Play again on a phone."
+        : g.won ? nameOf(g.won) + " wins. Tap Play again on a phone."
+        : seated < 2 && view !== "picture" ? (seated ? "Waiting for a second player" : "Two players, scan to join")
+        : nameOf(g.turn) + (g.b === "---------" ? " starts" : "'s turn");
+    }
+
+    // ---- the referee (the real TV only) ----
+    function save() { L.store.set("game", g); tell(); }
+    function tell(only) {   // each seated player's phone hears the game, and which mark is theirs
+      L.players.slice(0, 2).forEach(function (p, i) { if (!only || only === p.id) L.send({ type: "game", g: g, you: i ? "o" : "x" }, p.id); });
+    }
+    function card() { L.joinCard({ show: L.players.length < 2, size: L.players.length ? "corner" : "full", line: "Scan to play" }); }
+    function seats() {   // the players' names, kept with the game so the owner's phone shows them too
+      var n = { x: L.players[0] ? L.players[0].name : "", o: L.players[1] ? L.players[1].name : "" };
+      if (n.x !== g.names.x || n.o !== g.names.o) { g.names = n; save(); } else tell();
+    }
+    if (isTv) {
+      L.on("move", function (m, from) {
+        var s = seatOf(from), c = m.cell;
+        if (!s || g.won || g.turn !== s || L.players.length < 2) { tell(from); return; }   // not their turn: send them the game again
+        if (typeof c !== "number" || c < 0 || c > 8 || c % 1 || g.b.charAt(c) !== "-") { tell(from); return; }
+        g.b = g.b.substr(0, c) + s + g.b.substr(c + 1); last = c;
+        var w = winner(g.b);
+        if (w) { g.won = s; g.line = w; g.score[s]++; chord(); }
+        else if (g.b.indexOf("-") < 0) g.won = "draw";
+        else { g.turn = s === "x" ? "o" : "x"; tick(); }
+        save(); draw();
+      });
+      L.on("again", function (m, from) { if ((g.won && seatOf(from)) || from === "owner") {   // a player once the game is over, the owner at any time
+        g = fresh(g); last = -1; save(); draw(); } });
+      L.on("reset", function (m, from) { if (from === "owner") { g = fresh(null); g.names = { x: L.players[0] ? L.players[0].name : "", o: L.players[1] ? L.players[1].name : "" }; last = -1; save(); draw(); } });
+      L.on("hi", function (m, from) { tell(from); });
+      L.onPlayers(function () { seats(); card(); draw(); });
+      seats(); card();
+    } else {
+      L.store.on(function (k, v) { if (k === "game" && v) { var was = g.b; g = v; last = -1; for (var i = 0; i < 9; i++) if (was.charAt(i) !== v.b.charAt(i)) last = i; draw(); } });
+    }
+
+    // ---- sound: Web Audio only on a TV page; TVs allow it after a remote's button ----
+    function note(f, at, len) {
+      var ac = L.sound.context(); if (!isTv || !ac || !L.sound.unlocked) return;
+      var o = ac.createOscillator(), v = ac.createGain(), t = ac.currentTime + at;
+      o.frequency.value = f; v.gain.setValueAtTime(0.0001, t); v.gain.exponentialRampToValueAtTime(0.15, t + 0.02); v.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      o.connect(v); v.connect(ac.destination); o.start(t); o.stop(t + len + 0.05);
+    }
+    function tick() { note(520, 0, 0.18); }
+    function chord() { note(523, 0, 0.9); note(659, 0.12, 0.9); note(784, 0.24, 1.1); }
+
+    L.onSettings(function () { paint(); draw(); });
+    paint(); draw(); L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

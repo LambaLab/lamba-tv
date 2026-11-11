@@ -1,0 +1,65 @@
+/* Stopwatch and Countdown as SDK apps (timer.js): the face on the TV, in the phone's preview and in the small pictures,
+   sized from script: no container units, no inset, no flex gap, no clamp (old TV browsers, Chrome 61). The same file is in
+   apps/stopwatch and apps/countdown. */
+
+/* ---- The face ---- */
+.tf { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; background: var(--bg, #000); color: var(--ink, #fff);
+  font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none; cursor: default; }
+.tf-main { position: absolute; left: 0; top: 0; z-index: 2; text-align: center; white-space: nowrap;
+  -webkit-transition: -webkit-transform .8s cubic-bezier(.22,1,.36,1); transition: transform .8s cubic-bezier(.22,1,.36,1); }
+.tf-still .tf-main { -webkit-transition: none; transition: none; }
+.tf p { margin: 0; }
+/* the numbers: each digit in a cell of the same width, so nothing moves as they change */
+.tf-time { font-weight: var(--w); line-height: 1; letter-spacing: 0; -webkit-font-feature-settings: "tnum" 1, "lnum" 1; font-feature-settings: "tnum" 1, "lnum" 1; }
+.tf-time span, .tf-lt span { display: inline-block; text-align: center; }
+.tf-time .d, .tf-lt .d { width: var(--dw, .62em); }
+.tf-time .s, .tf-lt .s { width: var(--sw, .32em); }
+.tf-mn, .tf-fr, .tf-ap { display: inline-block; vertical-align: baseline; }
+.tf-fr { font-size: .5em; color: var(--sub); }
+.tf-ap { font-size: .3em; margin-left: .32em; font-weight: var(--tw); letter-spacing: .04em; color: var(--sub); }
+.tf-line, .tf-top, .tf-date { font-weight: var(--tw); color: var(--sub); line-height: 1.25; letter-spacing: .01em; }
+.tf-line:empty, .tf-top:empty { visibility: hidden; }
+.tf-kids .tf-time { text-shadow: 0 .04em 0 rgba(0,0,0,.14); }
+
+/* stopwatch: laps */
+.tf-laps { position: absolute; margin: 0; padding: 0; list-style: none; z-index: 2; font-weight: var(--tw); }
+.tf-laps li { display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; -webkit-box-align: baseline; -webkit-align-items: baseline; align-items: baseline;
+  padding: .42em 0; border-bottom: 1px solid var(--track); line-height: 1.1; white-space: nowrap; }
+.tf-laps li:last-child { border-bottom: 0; }
+.tf-ln { color: var(--sub); }
+.tf-lt { color: var(--ink); }
+.tf-laps .tf-cur .tf-lt, .tf-laps .tf-cur .tf-ln { color: var(--sub); }
+.tf-laps .tf-best .tf-lt, .tf-laps .tf-best .tf-ln { color: var(--acc); }
+.tf-laps .tf-in { -webkit-animation: tfIn .6s cubic-bezier(.22,1,.36,1) both; animation: tfIn .6s cubic-bezier(.22,1,.36,1) both; }
+@-webkit-keyframes tfIn { from { opacity: 0; -webkit-transform: translateY(-.5em); } to { opacity: 1; -webkit-transform: none; } }
+@keyframes tfIn { from { opacity: 0; transform: translateY(-.5em); } to { opacity: 1; transform: none; } }
+
+/* countdown: the ring, the last ten seconds, the end */
+.tf-ring { position: absolute; z-index: 1; overflow: visible; }
+.tf-track, .tf-arc { fill: none; }
+.tf-track { stroke: var(--track); }
+.tf-arc { stroke: var(--acc); stroke-linecap: round; }
+.tf-big { font-weight: var(--w); line-height: 1; color: var(--acc); }
+.tf-fin .tf-big { font-weight: var(--tw); color: var(--ink); letter-spacing: -.01em; }
+.tf-pulse { -webkit-animation: tfPulse 1s cubic-bezier(.22,1,.36,1) both; animation: tfPulse 1s cubic-bezier(.22,1,.36,1) both; }
+@-webkit-keyframes tfPulse { 0% { opacity: .55; -webkit-transform: scale(1.06); } 100% { opacity: 1; -webkit-transform: none; } }
+@keyframes tfPulse { 0% { opacity: .55; transform: scale(1.06); } 100% { opacity: 1; transform: none; } }
+.tf-glow { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(ellipse 62% 70% at 50% 52%, var(--glow), rgba(0,0,0,0) 72%); -webkit-transition: opacity 1.2s ease; transition: opacity 1.2s ease; }
+.tf-glow.on { opacity: 1; -webkit-animation: tfBreathe 3.4s ease-in-out infinite alternate; animation: tfBreathe 3.4s ease-in-out infinite alternate; }
+@-webkit-keyframes tfBreathe { from { opacity: .45; } to { opacity: 1; } }
+@keyframes tfBreathe { from { opacity: .45; } to { opacity: 1; } }
+.tf-hint { position: absolute; left: 0; right: 0; bottom: 3.2%; z-index: 2; text-align: center; font-weight: var(--tw); color: var(--sub); }
+.tf-snd { position: absolute; right: 2.4%; bottom: 2.4%; z-index: 3; padding: .5em 1.1em; border-radius: 99em; font-family: "Figtree", system-ui, sans-serif; font-weight: 600;
+  background: rgba(20,20,24,.62); color: #fff; }
+.tf-snd[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-main, .tf-glow { -webkit-transition: none; transition: none; }
+  .tf-glow.on, .tf-pulse, .tf-laps .tf-in { -webkit-animation: none; animation: none; }
+}
+
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body.screen { cursor: none; }
+body.picture { background: transparent; }
+

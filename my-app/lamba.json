@@ -1,0 +1,39 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "my-app",
+ "name": "My app",
+ "sub": "A few words under its name",
+ "about": "One line about what your app does",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": ["#2a6f8f", "#123c46"],
+ "clips": [["my-app-tv", "What the TV shows"], ["my-app-phone", "What a phone does"]],
+ "page": {
+  "facts": [["Players", "Up to 4", "each on their own phone"]],
+  "about": [{ "h": "What it is", "p": "Say in a few calm sentences what your app is for and who it is for." }]
+ },
+ "screens": { "tv": "tv.html", "phone": "phone.html" },
+ "players": { "min": 0, "max": 4 },
+ "guests": true,
+ "age": "all",
+ "permissions": ["sound"],
+ "outside": [],
+ "settings": {
+  "fields": {
+   "look": { "type": "choice", "default": "sea", "choices": [
+    { "id": "sea", "name": "Sea", "sub": "Deep blue green", "picture": "live" },
+    { "id": "sun", "name": "Sun", "sub": "Warm and bright", "picture": "live" },
+    { "id": "night", "name": "Night", "sub": "Calm and dark", "picture": "live" } ] },
+   "names": { "type": "switch", "default": true, "apply": "now",
+    "on": { "name": "Show names", "sub": "Each tap with who sent it", "picture": { "text": "Sam" } },
+    "off": { "name": "No names", "sub": "Only the taps", "picture": { "text": "Hi" } } }
+  },
+  "groups": [
+   { "key": "look", "label": "Look", "icon": "live", "parts": [{ "setting": "look", "label": "Look" }] },
+   { "host": "frame" }, { "host": "mat" },
+   { "key": "names", "label": "Names", "parts": [{ "setting": "names", "label": "Names" }] },
+   { "host": "brightness" }
+  ]
+ }
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Countdown</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  Countdown on the owner's phone (Lamba.screen.view):
+    controller  under the copy of the screen: the quick times, Restart, Start / Pause / Resume / Stop, a minute more,
+                and why they wait ("Countdown is not on your screen" with Show on screen)
+    part "time" the Custom time group of the settings: three wheels and Start
+  Commands go to the TV as { type: "cmd", c: { id, op, ... } } (see tv.html); what runs comes back in Lamba.store "run".
+-->
+</head>
+<body>
+<div class="l-col" id="ctl" hidden>
+  <div class="l-off" id="off" hidden><p id="offT"></p><button type="button" class="l-btn light" data-go="show">Show on screen</button></div>
+  <div class="l-col" id="live">
+    <div class="l-chips" id="chips" role="group" aria-label="Start a countdown"></div>
+    <div class="l-acts" id="acts"></div>
+  </div>
+  <p class="l-note" id="note" role="status" hidden></p>
+  <p class="l-warm" id="snd" hidden></p>
+</div>
+<div class="l-form" id="custom" hidden><p class="l-cap" id="cap"></p></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
+<script src="timer.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var T = LambaTimer("countdown"), RUN = T.RUN, $ = function (id) { return document.getElementById(id); };
+    var S = T.clean(L.settings), run = RUN.clean(L.store.get("run")), off = 0, tvRun = null, synced = false;
+    var ICON = {
+      play: '<path d="M8.5 5.6v12.8l10-6.4z" fill="currentColor" stroke="none"/>',
+      pause: '<rect x="6.5" y="5.5" width="3.8" height="13" rx="1.2" fill="currentColor" stroke="none"/><rect x="13.7" y="5.5" width="3.8" height="13" rx="1.2" fill="currentColor" stroke="none"/>',
+      stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2.4" fill="currentColor" stroke="none"/>',
+      restart: '<path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19 4.5V8h-3.5"/>',
+      plus: '<path d="M12 6v12M6 12h12"/>',
+      speaker: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18.2 6.5a8 8 0 0 1 0 11"/>'
+    };
+    var onTv = function () { var s = L.status; return s.onScreen && s.power !== false && s.tv !== false; };
+    // a command: straight to the TV; the copy moves at once, the TV's own write puts it right
+    function cmd(op, more, any) {
+      if (!any && !onTv()) { L.show(); return false; }
+      if (!L.status.connected) { say("Not sent: the link to your screen is down. It reconnects by itself, try again in a moment."); return false; }
+      var c = T.copy({ id: T.rid(), op: op }, more);
+      L.send({ type: "cmd", c: c });
+      if (op !== "sync") { run = RUN.act(run, c, Date.now() + off); run.done = c.id; paint(); LambaUI.buzz(); }
+      return true;
+    }
+    L.store.on(function (k, v) { if (k !== "run" || !v) return; if (typeof v.now === "number") off = v.now - Date.now(); tvRun = v; run = RUN.clean(v); if (L.screen.view !== "part") paint(); });
+    var noteT = 0;
+    var say = function (t) { var n = $("note"); n.textContent = t; n.hidden = !t; clearTimeout(noteT); if (t) noteT = setTimeout(function () { n.hidden = true; }, 5000); };
+
+    if (L.screen.view === "part") { customPart(); return; }
+    $("ctl").hidden = false;
+    var PRESETS = [[60000, "1 min"], [180000, "3 min"], [300000, "5 min"], [600000, "10 min"], [900000, "15 min"], [1800000, "30 min"], [3600000, "1 hour"]];
+    $("chips").innerHTML = PRESETS.map(function (p) { return '<button type="button" class="l-chip" data-ms="' + p[0] + '">' + p[1] + "</button>"; }).join("") + '<button type="button" class="l-chip" id="customChip" data-go="custom">Custom</button>';
+    $("acts").innerHTML = LambaUI.act("restart", ICON.restart, "Restart") + LambaUI.act("toggle", ICON.play, "Start", "l-main go") + LambaUI.act("add", ICON.plus, "1 minute more");
+    $("snd").innerHTML = LambaUI.svg(ICON.speaker) + "<span>The TV's sound is off until someone presses OK on its remote. Press it once now.</span>";
+    document.body.addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      T.Sound.wake();
+      if (b.getAttribute("data-go") === "show") { L.show(); return; }
+      if (b.getAttribute("data-go") === "custom") { L.open("custom"); return; }
+      if (b.getAttribute("data-ms")) { cmd("start", { ms: +b.getAttribute("data-ms") }); return; }
+      var op = b.getAttribute("data-op"); if (!op || b.disabled) return;
+      if (op === "toggle") cmd(run.st === "done" ? "stop" : "toggle"); else cmd(op);
+    });
+    // the right buttons for what runs now, and why they wait
+    var described = "";
+    function paint() {
+      var s = L.status, why = !s.connected && !s.linked ? "Connecting to your screen…" : s.tv === false ? "Your screen is not connected. Open " + (s.tvAddress || "lamba.tv") + " on the TV." : s.power === false ? "Your frame is off." : !s.onScreen ? "Countdown is not on your screen." : "";
+      $("off").hidden = !why; $("live").hidden = !!why; $("offT").textContent = why;
+      document.querySelector('[data-go="show"]').hidden = !why || !s.linked || s.tv === false;
+      var st = run.st;
+      LambaUI.setAct(document.querySelector(".l-main"), st === "run" ? ICON.pause : st === "done" ? ICON.stop : ICON.play, st === "run" ? "Pause" : st === "pause" ? "Resume" : st === "done" ? "Stop" : "Start", st === "run" ? "hold" : st === "done" ? "stop" : "go");
+      document.querySelector('[data-op="restart"]').disabled = st === "idle";
+      [].forEach.call(document.querySelectorAll(".l-chip[data-ms]"), function (c) { c.setAttribute("aria-pressed", String(+c.getAttribute("data-ms") === run.dur)); });
+      var cu = $("customChip"), isP = PRESETS.some(function (p) { return p[0] === run.dur; });
+      cu.setAttribute("aria-pressed", String(!isP)); cu.textContent = isP ? "Custom" : T.fmtCD(run.dur);
+      L.keepInView(st === "done");   // Stop stays in reach, even with settings open
+      $("snd").hidden = !onTv() || !tvRun || tvRun.snd !== false;
+      var d = T.fmtCD(run.dur); if (d !== described) { described = d; L.describe("custom", d); }
+    }
+    L.onStatus(function (s) { if (s.onScreen && s.connected && !synced) { synced = true; cmd("sync", null, true); } if (!s.connected) synced = false; paint(); });
+    // choosing the sound at zero plays it here once
+    L.onSettings(function (s, changed) { var was = S.tone; S = T.clean(s); if (changed.indexOf("tone") > -1 && S.tone !== was && S.tone !== "quiet") T.Sound.preview(S.tone); });
+    setInterval(paint, 15000);
+    paint();
+    if (L.status.onScreen && L.status.connected) { synced = true; cmd("sync", null, true); }
+
+    // ---- the Custom time group: three wheels (hours, minutes, seconds) and Start ----
+    function customPart() {
+      $("custom").hidden = false;
+      var range = function (n, f) { var a = []; for (var i = 0; i < n; i++) a.push(f ? f(i) : String(i)); return a; };
+      var w = LambaUI.wheel([{ label: "Hours", unit: "h", items: range(24) }, { label: "Minutes", unit: "min", items: range(60, T.two) }, { label: "Seconds", unit: "s", items: range(60, T.two) }]);
+      $("custom").appendChild(w.el);
+      var go = document.createElement("button"); go.type = "button"; go.className = "l-btn light l-wide"; go.innerHTML = LambaUI.svg(ICON.play) + "<span>Start</span>"; $("custom").appendChild(go);
+      var ms = function () { var v = w.get(); return ((v[0] * 60 + v[1]) * 60 + v[2]) * 1000; };
+      var show = function () { var m = ms(); $("cap").textContent = m ? T.durWords(m) : "Pick a time"; go.disabled = !m; go.lastChild.textContent = m ? "Start " + T.fmtCD(m) : "Start"; };
+      w.onChange = show;
+      go.addEventListener("click", function () { var m = ms(); if (!m) return; T.Sound.wake(); if (cmd("start", { ms: m })) L.open(""); });
+      var t = Math.round(run.dur / 1000); w.set([Math.min(23, Math.floor(t / 3600)), Math.floor(t / 60) % 60, t % 60]); show();
+    }
+  });
+})();
+</script>
+</body>
+</html>

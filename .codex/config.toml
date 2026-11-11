@@ -1,0 +1,5 @@
+# The Lamba MCP server for Codex (a trusted project reads this file). The key comes from the LAMBA_KEY environment
+# variable: make one at https://lamba.tv/devs/keys. Docs: https://lamba.tv/devs/docs/ai/
+[mcp_servers.lamba]
+url = "https://lamba.tv/devs/mcp"
+bearer_token_env_var = "LAMBA_KEY"

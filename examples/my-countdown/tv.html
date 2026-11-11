@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;500&family=Fraunces:wght@300;400&family=Baloo+2:wght@700;800&family=Figtree:wght@600&display=swap">
+<link rel="stylesheet" href="timer.css">
+<!--
+  The big screen of Stopwatch and Countdown (the same page in apps/stopwatch and apps/countdown: it reads which app it is
+  from Lamba.app). Three views (Lamba.screen.view):
+    screen   the TV: it keeps the time. What runs is kept in Lamba.store "run" ({ ...run, now, snd }: now is the TV's clock
+             when it wrote it, snd whether the TV may play sound), so the phones follow it and a reload loses nothing.
+             The phones send { type: "cmd", c: { id, op, ... } }; the TV applies each command once (run.done), on its own
+             clock. Ops: stopwatch toggle start pause lap reset; countdown start { ms } toggle pause resume add restart stop;
+             both: sync (write again). The remote's OK button starts and pauses, and stops a finished countdown.
+    preview  the phone's copy: follows "run" (the clock difference learned from each fresh write), and moves at once
+             with the owner's own commands (the host passes them here too).
+    picture  a small still picture for the settings (Lamba.screen.picture: which setting and choice).
+  Old TV browsers (Chrome 61): ES5, no ?. or ??, no flex gap.
+-->
+</head>
+<body>
+<div id="face"></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script src="timer.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var APP = L.app === "countdown" ? "countdown" : "stopwatch", T = LambaTimer(APP), RUN = T.RUN, view = L.screen.view, el = document.getElementById("face");
+    var S = T.clean(L.settings), copy = T.copy;
+    document.title = APP === "countdown" ? "Countdown" : "Stopwatch";
+    // ---- a small still picture for the phone's settings ----
+    if (view === "picture") {
+      document.body.className = "picture";
+      var P = L.screen.picture || {}, w = P.w || innerWidth, h = P.h || innerHeight;
+      var sample = APP === "countdown" ? { st: "pause", dur: 300000, left: 187000 }
+        : P.setting === "laps" ? { on: false, acc: 95220, laps: [30120, 61040, 89900] } : P.group === "show" ? { on: false, acc: 83380, laps: [30120, 61040] } : { on: false, acc: 263380, laps: [] };
+      var still = new T.Face(el, APP, { w: w, h: h, T: new Date(2026, 10, 10, 7, 42, 0).getTime() });
+      still.set(S); still.state(RUN.clean(sample)); still.go();
+      L.colours(T.tones(S));
+      var done = function () { still.lay = ""; still.go(); L.drawn(); };
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(done, done); else setTimeout(done, 300);
+      return;
+    }
+    var screen = view === "screen", off = 0, fresh = false;
+    document.body.className = screen ? "screen" : "preview";
+    var stored = L.store.get("run"), run = RUN.clean(stored);
+    var face = new T.Face(el, APP, screen ? { tv: true } : { now: function () { return Date.now() + off; } });
+    face.set(S); face.state(run);
+    var tell = function () { L.colours(T.tones(S)); if (screen) L.question(T.question(S)); };
+    // the TV writes what runs (the phones follow it)
+    var report = function () { if (screen) L.store.set("run", copy(run, { now: Date.now(), snd: APP === "stopwatch" ? true : T.Sound.on() })); };
+    // the sound of a finished countdown, until it is stopped
+    var playing = null, playKey = "";
+    var sound = function () {
+      if (!screen) return;
+      var want = "";
+      if (APP === "countdown" && run.st === "done" && run.loud && S.tone !== "quiet" && Date.now() - run.at < 600000) want = "cd" + run.at + S.tone;
+      if (want === playKey) return;
+      if (playing) playing.stop(); playing = null; playKey = want;
+      if (want) { T.Sound.wake(); playing = T.Sound.play(S.tone, { vol: .7, gap: 1.6 }); }
+    };
+    var redraw = function () { face.state(run); face.go(); sound(); };
+    var act = function (c) { run = RUN.act(run, c, Date.now() + off); run.done = c.id ? String(c.id).slice(0, 40) : run.done; redraw(); report(); };
+    L.onSettings(function (s) { S = T.clean(s); face.set(S); redraw(); tell(); });
+    // a phone's command (the TV applies it once; the preview moves ahead of the TV with the owner's own)
+    L.on("cmd", function (m) {
+      var c = m && m.c; if (!c || typeof c !== "object" || typeof c.id !== "string" || !c.id || c.id === run.done) return;
+      if (c.op === "sync") { if (screen) report(); return; }
+      if (screen || fresh) act(c);
+    });
+    // the TV's own writes reach the preview: what runs, and the difference between the clocks
+    L.store.on(function (k, v) {
+      if (screen || k !== "run" || !v) return;
+      if (typeof v.now === "number") { off = v.now - Date.now(); fresh = true; }
+      run = RUN.clean(v); redraw();
+    });
+    if (screen) {
+      L.onKey(function (k) {
+        if (!k.down) return; T.Sound.wake();
+        if (APP === "stopwatch") act({ op: "toggle" }); else act({ op: run.st === "done" ? "stop" : "toggle" });
+      });
+      L.sound.onUnlock(function () { T.Sound.wake(); });
+      var lastSnd = null;
+      setInterval(function () {
+        var now = Date.now(), changed = APP === "countdown" ? RUN.check(run, now) : false;
+        if (APP === "countdown" && run.st === "done" && run.loud && now - run.at > 600000) { run.loud = false; changed = true; }   // ten minutes of chimes is enough: the glow stays
+        if (changed) { redraw(); report(); }
+        var s = T.Sound.on(); if (s !== lastSnd) { lastSnd = s; face.sound(s); if (APP !== "stopwatch") report(); }
+      }, APP === "countdown" ? 250 : 1000);
+      T.Sound.wake();   // some TVs allow sound from the start
+      face.sound(T.Sound.on());
+    }
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) face.go(); });
+    redraw(); tell(); report();
+    setTimeout(T.relayout, 400); setTimeout(T.relayout, 1600);   // fonts arrive, old TVs settle their size late
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { T.relayout(); L.drawn(); }, function () { L.drawn(); }); else L.drawn();
+    setTimeout(function () { L.drawn(); }, 1500);
+  });
+})();
+</script>
+</body>
+</html>

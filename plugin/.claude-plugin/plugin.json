@@ -1,0 +1,16 @@
+{
+ "name": "lamba-tv",
+ "displayName": "Lamba TV apps",
+ "description": "Build, check, test and upload apps for Lamba TV: the lamba-tv-app skill, with the rules and patterns of a Lamba app.",
+ "author": {
+  "name": "Lamba",
+  "url": "https://lamba.tv/devs"
+ },
+ "homepage": "https://lamba.tv/devs/docs/ai/",
+ "keywords": [
+  "lamba",
+  "tv",
+  "apps"
+ ],
+ "version": "1.0.0-56e0eb6d"
+}

@@ -1,0 +1,135 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "three-in-a-row",
+ "name": "Three in a row",
+ "sub": "Two players, one board, turn by turn",
+ "about": "Noughts and crosses for two, each player on their own phone",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": [
+  "#3a3f8f",
+  "#1c1f4a"
+ ],
+ "clips": [
+  [
+   "three-in-a-row-board",
+   "The board on the TV"
+  ],
+  [
+   "three-in-a-row-phone",
+   "Your turn, on your phone"
+  ]
+ ],
+ "page": {
+  "facts": [
+   [
+    "Players",
+    "2",
+    "each on their own phone"
+   ],
+   [
+    "A game",
+    "1 minute",
+    "or less"
+   ]
+  ],
+  "about": [
+   {
+    "h": "Three in a row",
+    "p": "Two people join from their phones. The TV shows the board and says whose turn it is; each player taps a square on their own phone."
+   }
+  ]
+ },
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 2,
+  "max": 2
+ },
+ "guests": true,
+ "age": "all",
+ "permissions": [
+  "sound"
+ ],
+ "outside": [],
+ "settings": {
+  "fields": {
+   "look": {
+    "type": "choice",
+    "default": "chalk",
+    "choices": [
+     {
+      "id": "chalk",
+      "name": "Chalk",
+      "sub": "White lines on a dark board",
+      "picture": "live"
+     },
+     {
+      "id": "paper",
+      "name": "Paper",
+      "sub": "Ink on warm paper",
+      "picture": "live"
+     }
+    ]
+   },
+   "first": {
+    "type": "choice",
+    "default": "turns",
+    "apply": "now",
+    "choices": [
+     {
+      "id": "turns",
+      "name": "Take turns",
+      "sub": "X starts one game, O the next",
+      "picture": {
+       "text": "XO"
+      }
+     },
+     {
+      "id": "x",
+      "name": "X always starts",
+      "sub": "Every game starts with X",
+      "picture": {
+       "text": "X"
+      }
+     }
+    ]
+   }
+  },
+  "groups": [
+   {
+    "key": "look",
+    "label": "Look",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "look",
+      "label": "Look"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "key": "rules",
+    "label": "Who starts",
+    "parts": [
+     {
+      "setting": "first",
+      "label": "Who starts"
+     }
+    ]
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ }
+}

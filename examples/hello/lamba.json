@@ -1,0 +1,119 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "hello",
+ "name": "Hello",
+ "sub": "The smallest SDK app",
+ "about": "Guests wave from their phones and the TV waves back",
+ "icon": "icon.svg",
+ "tint": "#2a6f8f",
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 0,
+  "max": 4
+ },
+ "guests": true,
+ "age": "all",
+ "permissions": [],
+ "outside": [],
+ "settings": {
+  "fields": {
+   "bg": {
+    "type": "choice",
+    "default": "sea",
+    "choices": [
+     {
+      "id": "sea",
+      "name": "Sea",
+      "sub": "Deep blue green",
+      "picture": {
+       "text": "Aa",
+       "small": "Sea"
+      }
+     },
+     {
+      "id": "sun",
+      "name": "Sun",
+      "sub": "Warm and bright",
+      "picture": {
+       "text": "Aa",
+       "small": "Sun"
+      }
+     },
+     {
+      "id": "night",
+      "name": "Night",
+      "sub": "Calm and dark",
+      "picture": {
+       "text": "Aa",
+       "small": "Night"
+      }
+     }
+    ]
+   },
+   "names": {
+    "type": "switch",
+    "default": true,
+    "apply": "now",
+    "on": {
+     "name": "Show names",
+     "sub": "Each wave with who sent it",
+     "picture": {
+      "text": "Sam"
+     }
+    },
+    "off": {
+     "name": "No names",
+     "sub": "Only the waves",
+     "picture": {
+      "text": "Hi"
+     }
+    }
+   }
+  },
+  "groups": [
+   {
+    "key": "look",
+    "label": "Look",
+    "parts": [
+     {
+      "setting": "bg",
+      "label": "Colour"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "key": "names",
+    "label": "Names",
+    "parts": [
+     {
+      "setting": "names",
+      "label": "Names"
+     }
+    ]
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ },
+ "clips": [
+  [
+   "hello-tv",
+   "What the TV shows"
+  ],
+  [
+   "hello-phone",
+   "What a phone does"
+  ]
+ ]
+}

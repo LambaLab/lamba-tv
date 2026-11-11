@@ -1,0 +1,1193 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "title": "lamba.json, version 1",
+ "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
+ "x-checker-only": [
+  "players.min is at most players.max",
+  "a choice setting's default is one of its choices, and each choice id is used once",
+  "a number setting has min below max, its default between them, and one label per step",
+  "a text setting's default is no longer than its max",
+  "a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max",
+  "resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden",
+  "group keys are used once, and a group's part keys once",
+  "an app part (parts[].app) needs screens.phone",
+  "the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name",
+  "on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has"
+ ],
+ "type": "object",
+ "required": [
+  "lamba",
+  "id",
+  "name",
+  "sub",
+  "about",
+  "icon",
+  "screens",
+  "guests",
+  "age",
+  "permissions",
+  "outside"
+ ],
+ "properties": {
+  "$schema": {
+   "description": "This schema's address, for editors (lamba-check.mjs ignores it)"
+  },
+  "lamba": {
+   "const": 1,
+   "description": "The version of these rules"
+  },
+  "id": {
+   "type": "string",
+   "pattern": "^[a-z][a-z0-9-]{1,23}$",
+   "description": "2 to 24 small letters, digits or dashes, starting with a letter; the folder's name"
+  },
+  "name": {
+   "type": "string",
+   "maxLength": 24,
+   "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+   "description": "Words people read: at most 24 characters, no en or em dash"
+  },
+  "sub": {
+   "type": "string",
+   "maxLength": 40,
+   "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+   "description": "Words people read: at most 40 characters, no en or em dash"
+  },
+  "about": {
+   "type": "string",
+   "maxLength": 80,
+   "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+   "description": "Words people read: at most 80 characters, no en or em dash"
+  },
+  "icon": {
+   "type": "string",
+   "allOf": [
+    {
+     "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+    },
+    {
+     "pattern": "\\.([sS][vV][gG])$"
+    }
+   ],
+   "description": "A square SVG in the folder"
+  },
+  "card": {
+   "type": "string",
+   "allOf": [
+    {
+     "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+    }
+   ],
+   "description": "A 320 x 180 SVG: the app's picture on the start page"
+  },
+  "tint": {
+   "anyOf": [
+    {
+     "type": "string",
+     "pattern": "^#[0-9a-fA-F]{6}$",
+     "description": "A colour, #rrggbb"
+    },
+    {
+     "type": "array",
+     "minItems": 2,
+     "maxItems": 2,
+     "items": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "A colour, #rrggbb"
+     }
+    }
+   ]
+  },
+  "clips": {
+   "type": "array",
+   "minItems": 2,
+   "description": "At least 2 [file, caption]: clips/<file>.mp4 (540 x 920 H.264, 6 to 14 s) and clips/<file>-poster.webp",
+   "items": {
+    "type": "array",
+    "minItems": 2,
+    "maxItems": 2,
+    "prefixItems": [
+     {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,60}$"
+     },
+     {
+      "type": "string",
+      "maxLength": 60,
+      "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+      "description": "Words people read: at most 60 characters, no en or em dash"
+     }
+    ]
+   }
+  },
+  "page": {
+   "properties": {
+    "facts": {
+     "type": "array",
+     "maxItems": 6,
+     "items": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": {
+       "type": "string",
+       "maxLength": 60,
+       "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+       "description": "Words people read: at most 60 characters, no en or em dash"
+      }
+     }
+    },
+    "about": {
+     "type": "array",
+     "maxItems": 8,
+     "items": {
+      "type": "object",
+      "required": [
+       "h"
+      ],
+      "anyOf": [
+       {
+        "required": [
+         "p"
+        ]
+       },
+       {
+        "required": [
+         "items"
+        ]
+       }
+      ],
+      "properties": {
+       "h": {
+        "type": "string",
+        "maxLength": 60,
+        "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+        "description": "Words people read: at most 60 characters, no en or em dash"
+       },
+       "p": {
+        "type": "string",
+        "maxLength": 600,
+        "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+        "description": "Words people read: at most 600 characters, no en or em dash"
+       },
+       "items": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "minItems": 2,
+         "maxItems": 2,
+         "prefixItems": [
+          {
+           "type": "string",
+           "maxLength": 40,
+           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+           "description": "Words people read: at most 40 characters, no en or em dash"
+          },
+          {
+           "type": "string",
+           "maxLength": 300,
+           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+           "description": "Words people read: at most 300 characters, no en or em dash"
+          }
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "screens": {
+   "type": "object",
+   "required": [
+    "tv"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "tv": {
+     "type": "string",
+     "allOf": [
+      {
+       "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+      },
+      {
+       "pattern": "\\.([hH][tT][mM][lL])$"
+      }
+     ],
+     "description": "The big screen's page"
+    },
+    "phone": {
+     "type": "string",
+     "allOf": [
+      {
+       "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+      },
+      {
+       "pattern": "\\.([hH][tT][mM][lL])$"
+      }
+     ],
+     "description": "The phone page"
+    },
+    "picture": {
+     "type": "string",
+     "allOf": [
+      {
+       "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+      },
+      {
+       "pattern": "\\.([hH][tT][mM][lL])$"
+      }
+     ],
+     "description": "A lighter page for the small pictures"
+    }
+   }
+  },
+  "players": {
+   "type": "object",
+   "required": [
+    "min",
+    "max"
+   ],
+   "properties": {
+    "min": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 50
+    },
+    "max": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 50
+    }
+   },
+   "description": "Guests playing at once (0 to 50), min at most max"
+  },
+  "guests": {
+   "type": "boolean"
+  },
+  "age": {
+   "enum": [
+    "all",
+    "7+",
+    "13+"
+   ]
+  },
+  "permissions": {
+   "type": "array",
+   "items": {
+    "enum": [
+     "sound",
+     "camera",
+     "motion",
+     "country"
+    ]
+   }
+  },
+  "outside": {
+   "type": "array",
+   "items": {
+    "type": "string",
+    "pattern": "^https://[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(:\\d+)?$"
+   },
+   "description": "https://host addresses the app may reach (each approved by Lamba)"
+  },
+  "stagingOnly": {
+   "type": "boolean"
+  },
+  "notInDemo": {
+   "type": "boolean"
+  },
+  "listed": {
+   "type": "boolean"
+  },
+  "position": {
+   "type": "object",
+   "required": [
+    "after"
+   ],
+   "properties": {
+    "after": {
+     "type": "string",
+     "pattern": "^[a-z][a-z0-9-]{1,23}$"
+    }
+   }
+  },
+  "remote": {
+   "type": "object",
+   "required": [
+    "ok"
+   ],
+   "properties": {
+    "ok": {
+     "type": "boolean"
+    }
+   }
+  },
+  "inside": {
+   "anyOf": [
+    {
+     "type": "string",
+     "allOf": [
+      {
+       "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+      }
+     ],
+     "description": "A file inside the app's folder, by a relative address"
+    },
+    {
+     "type": "object",
+     "required": [
+      "by",
+      "pictures"
+     ],
+     "properties": {
+      "by": {
+       "not": {
+        "enum": [
+         false,
+         0,
+         "",
+         null
+        ]
+       }
+      },
+      "pictures": {
+       "type": [
+        "object",
+        "array"
+       ],
+       "additionalProperties": {
+        "type": "string",
+        "allOf": [
+         {
+          "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+         }
+        ],
+        "description": "A file inside the app's folder, by a relative address"
+       },
+       "items": {
+        "type": "string",
+        "allOf": [
+         {
+          "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+         }
+        ],
+        "description": "A file inside the app's folder, by a relative address"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "legacy": {
+   "type": [
+    "object",
+    "array"
+   ],
+   "properties": {
+    "tvStorage": {
+     "type": "string",
+     "pattern": "^lf-[a-z0-9-]{1,30}$"
+    },
+    "store": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]{0,23}$"
+     }
+    },
+    "tvStorageExtra": {
+     "type": [
+      "object",
+      "array"
+     ]
+    }
+   }
+  },
+  "settings": {
+   "type": "object",
+   "required": [
+    "fields",
+    "groups"
+   ],
+   "properties": {
+    "fields": {
+     "type": [
+      "object",
+      "array"
+     ],
+     "maxProperties": 40,
+     "propertyNames": {
+      "pattern": "^[a-z][A-Za-z0-9]{0,23}$",
+      "not": {
+       "enum": [
+        "frame",
+        "frc",
+        "fw",
+        "mw",
+        "matc",
+        "fday",
+        "fown",
+        "fall",
+        "bright"
+       ]
+      }
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/field"
+     }
+    },
+    "groups": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 16,
+     "items": {
+      "type": "object",
+      "anyOf": [
+       {
+        "required": [
+         "host"
+        ],
+        "properties": {
+         "host": {
+          "enum": [
+           "frame",
+           "mat",
+           "brightness"
+          ]
+         }
+        }
+       },
+       {
+        "not": {
+         "required": [
+          "host"
+         ]
+        },
+        "required": [
+         "key",
+         "label",
+         "parts"
+        ],
+        "properties": {
+         "key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,23}$",
+          "not": {
+           "enum": [
+            "frame",
+            "mat",
+            "bright",
+            "guest",
+            "scribble",
+            "line",
+            "visitors"
+           ]
+          }
+         },
+         "label": {
+          "type": "string",
+          "maxLength": 24,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 24 characters, no en or em dash"
+         },
+         "value": {
+          "const": "app"
+         },
+         "icon": {
+          "$ref": "#/$defs/picture"
+         },
+         "parts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+           "type": "object",
+           "required": [
+            "label"
+           ],
+           "properties": {
+            "label": {
+             "type": "string",
+             "maxLength": 24,
+             "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+             "description": "Words people read: at most 24 characters, no en or em dash"
+            }
+           },
+           "anyOf": [
+            {
+             "required": [
+              "app"
+             ],
+             "properties": {
+              "app": {
+               "type": "string",
+               "pattern": "^[a-z][a-z0-9-]{0,23}$"
+              }
+             }
+            },
+            {
+             "not": {
+              "required": [
+               "app"
+              ]
+             },
+             "required": [
+              "setting"
+             ],
+             "properties": {
+              "setting": {
+               "type": "string"
+              },
+              "presets": {
+               "const": true
+              }
+             }
+            }
+           ]
+          }
+         }
+        }
+       }
+      ]
+     },
+     "allOf": [
+      {
+       "contains": {
+        "type": "object",
+        "required": [
+         "host"
+        ],
+        "properties": {
+         "host": {
+          "const": "frame"
+         }
+        }
+       },
+       "minContains": 1,
+       "maxContains": 1
+      },
+      {
+       "contains": {
+        "type": "object",
+        "required": [
+         "host"
+        ],
+        "properties": {
+         "host": {
+          "const": "mat"
+         }
+        }
+       },
+       "minContains": 1,
+       "maxContains": 1
+      },
+      {
+       "contains": {
+        "type": "object",
+        "required": [
+         "host"
+        ],
+        "properties": {
+         "host": {
+          "const": "brightness"
+         }
+        }
+       },
+       "minContains": 1,
+       "maxContains": 1
+      }
+     ]
+    }
+   }
+  }
+ },
+ "allOf": [
+  {
+   "if": {
+    "required": [
+     "stagingOnly"
+    ],
+    "properties": {
+     "stagingOnly": {
+      "const": true
+     }
+    }
+   },
+   "then": {},
+   "else": {
+    "required": [
+     "clips"
+    ]
+   }
+  },
+  {
+   "if": {
+    "required": [
+     "guests"
+    ],
+    "properties": {
+     "guests": {
+      "const": true
+     }
+    }
+   },
+   "then": {
+    "required": [
+     "players"
+    ],
+    "properties": {
+     "players": {
+      "properties": {
+       "max": {
+        "minimum": 1
+       }
+      }
+     },
+     "screens": {
+      "required": [
+       "phone"
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "$defs": {
+  "picture": {
+   "description": "A picture: \"live\" (the app draws it), a file (svg, png, webp, jpg), { icon: file.svg }, { text, small } or { choice: true }",
+   "anyOf": [
+    {
+     "const": "live"
+    },
+    {
+     "type": "string",
+     "allOf": [
+      {
+       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_./-]{0,80}\\.([sS][vV][gG]|[pP][nN][gG]|[wW][eE][bB][pP]|[jJ][pP][gG]|[jJ][pP][eE][gG])$"
+      },
+      {
+       "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+      }
+     ]
+    },
+    {
+     "type": "object",
+     "required": [
+      "icon"
+     ],
+     "properties": {
+      "icon": {
+       "type": "string",
+       "allOf": [
+        {
+         "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+        },
+        {
+         "pattern": "\\.([sS][vV][gG])$"
+        }
+       ],
+       "description": "A file inside the app's folder, by a relative address"
+      }
+     }
+    },
+    {
+     "type": "object",
+     "required": [
+      "text"
+     ],
+     "not": {
+      "required": [
+       "icon"
+      ]
+     },
+     "properties": {
+      "text": {
+       "type": "string",
+       "maxLength": 24
+      },
+      "small": {
+       "type": "string",
+       "maxLength": 24
+      }
+     }
+    },
+    {
+     "type": "object",
+     "required": [
+      "choice"
+     ],
+     "not": {
+      "anyOf": [
+       {
+        "required": [
+         "icon"
+        ]
+       },
+       {
+        "required": [
+         "text"
+        ]
+       }
+      ]
+     },
+     "properties": {
+      "choice": {
+       "const": true
+      }
+     }
+    }
+   ]
+  },
+  "choice": {
+   "type": "object",
+   "required": [
+    "id",
+    "name"
+   ],
+   "properties": {
+    "id": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "string",
+       "pattern": "^[A-Za-z0-9_-]{0,40}$"
+      }
+     ]
+    },
+    "name": {
+     "type": "string",
+     "maxLength": 40,
+     "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+     "description": "Words people read: at most 40 characters, no en or em dash"
+    },
+    "sub": {
+     "type": "string",
+     "maxLength": 90,
+     "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+     "description": "Words people read: at most 90 characters, no en or em dash"
+    },
+    "short": {
+     "type": "string",
+     "maxLength": 24,
+     "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+     "description": "Words people read: at most 24 characters, no en or em dash"
+    },
+    "picture": {
+     "$ref": "#/$defs/picture"
+    }
+   }
+  },
+  "field": {
+   "type": "object",
+   "required": [
+    "type"
+   ],
+   "properties": {
+    "type": {
+     "enum": [
+      "choice",
+      "switch",
+      "number",
+      "text",
+      "list",
+      "colour"
+     ]
+    }
+   },
+   "allOf": [
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "choice"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "choices"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "choices": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 120,
+        "items": {
+         "$ref": "#/$defs/choice"
+        }
+       },
+       "default": {
+        "anyOf": [
+         {
+          "type": "number"
+         },
+         {
+          "type": "string"
+         }
+        ]
+       },
+       "dynamic": {
+        "type": "boolean"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "switch"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "default",
+       "on",
+       "off"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "default": {
+        "type": "boolean"
+       },
+       "on": {
+        "type": "object",
+        "required": [
+         "name"
+        ],
+        "properties": {
+         "name": {
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 40 characters, no en or em dash"
+         },
+         "sub": {
+          "type": "string",
+          "maxLength": 90,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 90 characters, no en or em dash"
+         },
+         "short": {
+          "type": "string",
+          "maxLength": 24,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 24 characters, no en or em dash"
+         },
+         "picture": {
+          "$ref": "#/$defs/picture"
+         }
+        }
+       },
+       "off": {
+        "type": "object",
+        "required": [
+         "name"
+        ],
+        "properties": {
+         "name": {
+          "type": "string",
+          "maxLength": 40,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 40 characters, no en or em dash"
+         },
+         "sub": {
+          "type": "string",
+          "maxLength": 90,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 90 characters, no en or em dash"
+         },
+         "short": {
+          "type": "string",
+          "maxLength": 24,
+          "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+          "description": "Words people read: at most 24 characters, no en or em dash"
+         },
+         "picture": {
+          "$ref": "#/$defs/picture"
+         }
+        }
+       },
+       "first": {
+        "enum": [
+         "on",
+         "off"
+        ]
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "number"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "min",
+       "max",
+       "step",
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "min": {
+        "type": "number"
+       },
+       "max": {
+        "type": "number"
+       },
+       "step": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       },
+       "default": {
+        "type": "number"
+       },
+       "labels": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "maxLength": 30,
+         "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+         "description": "Words people read: at most 30 characters, no en or em dash"
+        }
+       },
+       "unit": {
+        "type": "string",
+        "maxLength": 12,
+        "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+        "description": "Words people read: at most 12 characters, no en or em dash"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "text"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "max",
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "max": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200
+       },
+       "default": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "list"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "of",
+       "min",
+       "max",
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "of": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 200,
+        "items": {
+         "type": "string",
+         "pattern": "^[A-Za-z0-9_-]{0,40}$"
+        }
+       },
+       "min": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "max": {
+        "type": "integer"
+       },
+       "default": {
+        "type": "array"
+       },
+       "presets": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "required": [
+          "name",
+          "value"
+         ],
+         "properties": {
+          "id": {
+           "anyOf": [
+            {
+             "type": "string",
+             "pattern": "^[A-Za-z0-9_-]{0,40}$"
+            },
+            {
+             "type": "integer"
+            }
+           ]
+          },
+          "value": {
+           "type": "array"
+          },
+          "name": {
+           "type": "string",
+           "maxLength": 40,
+           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+           "description": "Words people read: at most 40 characters, no en or em dash"
+          },
+          "sub": {
+           "type": "string",
+           "maxLength": 90,
+           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+           "description": "Words people read: at most 90 characters, no en or em dash"
+          },
+          "picture": {
+           "$ref": "#/$defs/picture"
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "colour"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "default": {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}$",
+        "description": "A colour, #rrggbb"
+       },
+       "choices": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 120,
+        "items": {
+         "allOf": [
+          {
+           "$ref": "#/$defs/choice"
+          },
+          {
+           "properties": {
+            "id": {
+             "type": "string",
+             "pattern": "^#[0-9a-fA-F]{6}$",
+             "description": "A colour, #rrggbb"
+            }
+           }
+          }
+         ]
+        }
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

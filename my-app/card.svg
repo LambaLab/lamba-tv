@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><style>
+.dot { animation: pulse 3s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+</style>
+<rect x="56" y="22" width="208" height="134" fill="#141416"/><rect x="64" y="30" width="192" height="118" fill="#123c46"/>
+<text x="160" y="96" text-anchor="middle" font-family="Figtree, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="26" fill="#e6fbf4">My app</text>
+<circle class="dot" cx="160" cy="116" r="4" fill="#e6fbf4"/>
+</svg>

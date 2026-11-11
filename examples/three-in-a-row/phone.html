@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Three in a row</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  Three in a row on a phone. Two views (Lamba.screen.view):
+    "guest"       a player's phone: which mark is theirs, whose turn it is, and the nine squares low on the screen,
+                  where the thumb rests. A tap sends { type: "move", cell }; the TV decides and answers with the game.
+    "controller"  the owner's phone, under the copy of the TV: the score, New game and Scores to zero. It follows the
+                  game in Lamba.store "game" (guests have no saved data: the TV tells them with { type: "game" }).
+-->
+<style>
+body.guest { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; padding: 0 16px max(24px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+.me { display: flex; align-items: center; gap: 14px; padding: 28px 4px 0; }
+.me svg { flex: none; width: 54px; height: 54px; }
+.me b { display: block; font-size: 22px; }
+.me span { display: block; margin-top: 4px; font-size: 16px; color: var(--l-sub); }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 380px; margin: auto auto 16px; }
+.sq { aspect-ratio: 1; min-height: 88px; border: 0; border-radius: 18px; background: var(--l-tile); color: var(--l-ink); padding: 18%; cursor: pointer; touch-action: manipulation; transition: transform .12s ease, opacity .2s ease; }
+.sq:active { transform: scale(.95); }
+.sq:disabled { cursor: default; opacity: .55; }
+.sq:disabled:active { transform: none; }
+.sq.win { opacity: 1; box-shadow: 0 0 0 3px var(--l-ink) inset; }
+.sq svg, .me svg { overflow: visible; }
+.x path, .o circle { fill: none; stroke-width: 10; stroke-linecap: round; }   /* the marks only (the buttons' icons keep theirs) */
+.x { stroke: #ffd36e; } .o { stroke: #8fd3ff; }
+.again { width: 100%; max-width: 380px; margin: 0 auto 8px; }
+.ctl { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0 16px; }
+.score { margin: 0; font-size: 17px; font-weight: 600; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .sq { transition: none; } }
+</style>
+</head>
+<body>
+<div id="guest" hidden>
+  <header class="me"><span id="mark"></span><div><b id="who">You</b><span id="status" role="status">Joining the game</span></div></header>
+  <div class="grid" id="grid"></div>
+  <button type="button" class="l-btn light again" id="again" hidden>Play again</button>
+</div>
+<div id="owner" class="ctl" hidden>
+  <p class="score" id="score">Two players, scan to join</p>
+  <div class="l-acts">
+    <span></span>
+    <button type="button" class="l-act l-main go" id="new"><span class="l-i"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></span><span class="l-l">New game</span></button>
+    <button type="button" class="l-act" id="reset"><span class="l-i"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></span><span class="l-l">Scores to zero</span></button>
+  </div>
+</div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  var MARK = { x: '<svg class="x" viewBox="0 0 100 100"><path d="M18 18L82 82M82 18L18 82"/></svg>', o: '<svg class="o" viewBox="0 0 100 100"><circle cx="50" cy="50" r="34"/></svg>' };
+  var $ = function (id) { return document.getElementById(id); };
+  var nameOf = function (g, s) { return (g && g.names && g.names[s]) || (s === "x" ? "X" : "O"); };
+
+  Lamba.ready(function (L) {
+    if (L.screen.view === "guest") guest(L); else owner(L);
+  });
+
+  // ---- a player's phone ----
+  function guest(L) {
+    document.body.className = "guest"; $("guest").hidden = false;
+    var g = null, you = "", me = L.me();
+    $("who").textContent = me ? me.name : "You";
+    // the nine squares, made once
+    for (var i = 0; i < 9; i++) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "sq"; b.setAttribute("data-c", i); b.setAttribute("aria-label", "Square " + (i + 1));
+      b.addEventListener("click", function (e) { var c = +e.currentTarget.getAttribute("data-c"); L.send({ type: "move", cell: c }); if (navigator.vibrate) navigator.vibrate(4); });
+      $("grid").appendChild(b);
+    }
+    $("again").addEventListener("click", function () { L.send({ type: "again" }); });
+    function draw() {
+      var mine = g && !g.won && g.turn === you && g.names.x && g.names.o;
+      $("mark").innerHTML = you ? MARK[you] : "";
+      $("status").textContent = !g ? "Joining the game"
+        : !(g.names.x && g.names.o) ? "Waiting for a second player"
+        : g.won === "draw" ? "A draw"
+        : g.won ? (g.won === you ? "You win" : nameOf(g, g.won) + " wins")
+        : mine ? "Your turn" : nameOf(g, g.turn) + "'s turn";
+      [].forEach.call($("grid").children, function (b, i) {
+        var s = g ? g.b.charAt(i) : "-";
+        b.innerHTML = s === "-" ? "" : MARK[s];
+        b.disabled = !mine || s !== "-";
+        b.className = "sq" + (g && g.line && g.line.indexOf(i) > -1 ? " win" : "");
+      });
+      $("again").hidden = !(g && g.won);
+    }
+    L.on("game", function (m) { g = m.g; you = m.you; draw(); });
+    draw();
+    L.send({ type: "hi" });   // just opened: ask the TV for the game
+  }
+
+  // ---- the owner's phone ----
+  function owner(L) {
+    $("owner").hidden = false;
+    function draw() {
+      var g = L.store.get("game");
+      $("score").textContent = !g || !(g.names.x || g.names.o) ? "Two players, scan to join"
+        : nameOf(g, "x") + " " + g.score.x + ", " + nameOf(g, "o") + " " + g.score.o;
+    }
+    var go = function (type) { return function () { if (!L.status.onScreen) { L.show(); return; } L.send({ type: type }); }; };
+    $("new").addEventListener("click", go("again"));
+    $("reset").addEventListener("click", go("reset"));
+    L.store.on(draw); draw();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "my-countdown",
+ "name": "Countdown",
+ "sub": "A calm ring, a gentle chime",
+ "about": "A countdown with a calm ring and a gentle chime",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": [
+  "#f7a240",
+  "#c9501f"
+ ],
+ "clips": [
+  [
+   "countdown-presets",
+   "One tap: 3, 10 or 60 minutes"
+  ],
+  [
+   "countdown-end",
+   "The last ten seconds, then a glow"
+  ],
+  [
+   "countdown-more",
+   "A minute more, whenever you like"
+  ]
+ ],
+ "page": {
+  "facts": [
+   [
+    "Quick start",
+    "7 times",
+    "1 minute to 1 hour"
+   ],
+   [
+    "Any time",
+    "Up to 99 h",
+    "hours, minutes, seconds"
+   ],
+   [
+    "At zero",
+    "A chime",
+    "and a soft glow"
+   ],
+   [
+    "Control",
+    "Phone or remote",
+    "OK pauses and stops"
+   ]
+  ],
+  "about": [
+   {
+    "h": "A calm countdown",
+    "p": "Tap 1, 3, 5, 10, 15 or 30 minutes or 1 hour, or pick any time on the wheels. A ring empties slowly round the time left, and the last ten seconds count down one big number at a time."
+   },
+   {
+    "h": "At zero",
+    "p": "The screen glows softly and a gentle chime plays until you stop it, from your phone or with OK on the TV's remote. Add a minute, pause, or start it again whenever you like."
+   },
+   {
+    "h": "What you control",
+    "items": [
+     [
+      "Look:",
+      "Night, Daylight, Gallery, and two bold looks for kids."
+     ],
+     [
+      "Display:",
+      "the ring or bigger numbers, and the time it ends."
+     ],
+     [
+      "Sound:",
+      "chimes, marimba, harp, a soft beep, or quiet."
+     ]
+    ]
+   },
+   {
+    "h": "Sound on a TV",
+    "p": "TV browsers play sound only after a button press. Press OK on the TV's remote once, and your phone tells you while the sound is not on yet."
+   }
+  ]
+ },
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 0,
+  "max": 0
+ },
+ "guests": false,
+ "age": "all",
+ "permissions": [
+  "sound"
+ ],
+ "outside": [],
+ "remote": {
+  "ok": true
+ },
+ "inside": {
+  "by": "look",
+  "pictures": {
+   "night": "pictures/inside-night.webp",
+   "day": "pictures/inside-day.webp",
+   "gallery": "pictures/inside-gallery.webp",
+   "sunny": "pictures/inside-sunny.webp",
+   "candy": "pictures/inside-candy.webp"
+  }
+ },
+ "settings": {
+  "fields": {
+   "look": {
+    "type": "choice",
+    "default": "night",
+    "choices": [
+     {
+      "id": "night",
+      "name": "Night",
+      "sub": "Black, with warm white numbers",
+      "picture": "live"
+     },
+     {
+      "id": "day",
+      "name": "Daylight",
+      "sub": "Light and crisp",
+      "picture": "live"
+     },
+     {
+      "id": "gallery",
+      "name": "Gallery",
+      "sub": "Deep green and gold, set in a serif",
+      "picture": "live"
+     },
+     {
+      "id": "sunny",
+      "name": "Kids sunshine",
+      "sub": "Bold and bright, for kids",
+      "picture": "live"
+     },
+     {
+      "id": "candy",
+      "name": "Kids candy",
+      "sub": "Purple and pink, for kids",
+      "picture": "live"
+     }
+    ]
+   },
+   "ring": {
+    "type": "switch",
+    "default": true,
+    "on": {
+     "name": "Ring",
+     "sub": "A calm ring that empties",
+     "picture": "live"
+    },
+    "off": {
+     "name": "Numbers only",
+     "short": "Numbers",
+     "sub": "Bigger numbers, no ring",
+     "picture": "live"
+    }
+   },
+   "ends": {
+    "type": "switch",
+    "default": true,
+    "on": {
+     "name": "Show the end time",
+     "sub": "Ends at, under the time",
+     "picture": {
+      "text": "2:35",
+      "small": "Ends at"
+     }
+    },
+    "off": {
+     "name": "No end time",
+     "sub": "Only the time left",
+     "picture": {
+      "text": "2:35"
+     }
+    }
+   },
+   "tone": {
+    "type": "choice",
+    "default": "chimes",
+    "choices": [
+     {
+      "id": "chimes",
+      "name": "Chimes",
+      "sub": "Soft bells, rising, until you stop it",
+      "picture": {
+       "icon": "pictures/speaker.svg"
+      }
+     },
+     {
+      "id": "marimba",
+      "name": "Marimba",
+      "sub": "Warm wooden notes, until you stop it",
+      "picture": {
+       "icon": "pictures/speaker.svg"
+      }
+     },
+     {
+      "id": "harp",
+      "name": "Harp",
+      "sub": "A gentle ripple, until you stop it",
+      "picture": {
+       "icon": "pictures/speaker.svg"
+      }
+     },
+     {
+      "id": "classic",
+      "name": "Classic",
+      "sub": "A soft beep, beep, until you stop it",
+      "picture": {
+       "icon": "pictures/speaker.svg"
+      }
+     },
+     {
+      "id": "quiet",
+      "name": "Quiet",
+      "sub": "Only the glow",
+      "picture": {
+       "icon": "pictures/quiet.svg"
+      }
+     }
+    ]
+   }
+  },
+  "groups": [
+   {
+    "key": "custom",
+    "label": "Custom time",
+    "icon": {
+     "icon": "pictures/clock.svg"
+    },
+    "value": "app",
+    "parts": [
+     {
+      "app": "time",
+      "label": "Custom time"
+     }
+    ]
+   },
+   {
+    "key": "look",
+    "label": "Look",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "look",
+      "label": "Look"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "key": "show",
+    "label": "Display",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "ring",
+      "label": "Ring"
+     },
+     {
+      "setting": "ends",
+      "label": "End time"
+     }
+    ]
+   },
+   {
+    "key": "sound",
+    "label": "Sound",
+    "icon": {
+     "choice": true
+    },
+    "parts": [
+     {
+      "setting": "tone",
+      "label": "At zero"
+     }
+    ]
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ }
+}

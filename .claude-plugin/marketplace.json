@@ -1,0 +1,16 @@
+{
+ "name": "lamba",
+ "description": "Lamba's plugins for building Lamba TV apps with Claude Code",
+ "owner": {
+  "name": "Lamba",
+  "url": "https://lamba.tv/devs"
+ },
+ "plugins": [
+  {
+   "name": "lamba-tv",
+   "description": "Build, check, test and upload Lamba TV apps (the lamba-tv-app skill)",
+   "category": "development",
+   "source": "./plugin"
+  }
+ ]
+}

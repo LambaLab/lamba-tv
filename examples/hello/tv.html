@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hello</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700&display=swap">
+<!--
+  Hello, the smallest SDK app (docs/sdk/README.md): the example to copy. The TV says hello; guests who join wave from
+  their phones ({ type: "wave" }), the TV shows each wave and waves back to that guest ({ type: "seen" }). It counts
+  every wave in Lamba.store "waves". Settings (lamba.json): bg, names. Old TV browsers (Chrome 61): ES5 only.
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; }
+body { display: -webkit-box; display: flex; -webkit-box-align: center; align-items: center; -webkit-box-pack: center; justify-content: center; text-align: center; transition: background-color .6s ease; }
+h1 { margin: 0; font-size: 14vh; font-weight: 700; letter-spacing: -.02em; }
+p { margin: 3vh 0 0; font-size: 4vh; opacity: .75; }
+.wave { display: inline-block; -webkit-animation: wave .9s ease; animation: wave .9s ease; }
+@-webkit-keyframes wave { 30% { -webkit-transform: rotate(18deg); } 60% { -webkit-transform: rotate(-12deg); } }
+@keyframes wave { 30% { transform: rotate(18deg); } 60% { transform: rotate(-12deg); } }
+</style>
+</head>
+<body>
+<div><h1 id="hi">Hello</h1><p id="line"></p></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LOOK = { sea: ["#123c46", "#e6fbf4"], sun: ["#ffcf5c", "#2b1d05"], night: ["#0d0d12", "#f2f2f6"] };
+  Lamba.ready(function (L) {
+    var hi = document.getElementById("hi"), line = document.getElementById("line");
+    var paint = function () { var c = LOOK[L.settings.bg] || LOOK.sea; document.body.style.background = c[0]; document.body.style.color = c[1]; L.colours({ board: c[0], ink: c[1] }); };
+    var count = function () { var n = L.store.get("waves") || 0; line.textContent = n ? n + (n === 1 ? " wave so far" : " waves so far") : "Scan to wave from your phone"; };
+    var card = function () { if (L.screen.view === "screen") L.joinCard({ show: true, size: L.players.length ? "corner" : "full", line: "Scan to wave" }); };
+    L.onSettings(paint); L.onPlayers(card); L.store.on(count);
+    L.on("wave", function (m, from) {
+      var p = L.players.filter(function (x) { return x.id === from; })[0], name = p && p.name && L.settings.names ? p.name : "";
+      hi.innerHTML = '<span class="wave">👋</span> ' + (name ? "Hello " : "Hello");
+      if (name) hi.appendChild(document.createTextNode(name));
+      if (L.screen.view === "screen") { L.store.set("waves", (L.store.get("waves") || 0) + 1); count(); if (from) L.send({ type: "seen" }, from === "owner" ? "phones" : from); }
+    });
+    paint(); count(); card(); L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

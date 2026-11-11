@@ -1,0 +1,12 @@
+{
+ "name": "lamba-app",
+ "private": true,
+ "description": "A Lamba TV app. The app itself is plain files in its folder; this file only holds the self-test's tool.",
+ "scripts": {
+  "check": "node lamba-check.mjs",
+  "test": "node lamba-test.mjs"
+ },
+ "devDependencies": {
+  "playwright": "1.58.2"
+ }
+}

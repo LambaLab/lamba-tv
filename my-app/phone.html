@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Phone pages never zoom: keep user-scalable=no -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>My app</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<!-- Lamba's UI parts, so your app looks like every Lamba app (docs: Lamba UI parts) -->
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  My app on a phone (lamba.json screens.phone). One page, three views (Lamba.screen.view):
+    "guest"       a guest's phone, the whole screen
+    "controller"  the owner's controls, under the copy of the TV (its height follows its content)
+    "part"        a part of the settings drawer you draw yourself (lamba.json { "app": "<part>" }), not used here
+  Keep one main action, big, where the thumb rests (low on the screen). Phones send commands; the TV decides.
+-->
+<style>
+body.guest { min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 16px 12vh; box-sizing: border-box; }
+.hello { margin: 0 0 auto; padding-top: 14vh; text-align: center; font-size: 28px; font-weight: 700; }
+</style>
+</head>
+<body>
+<p class="hello" id="hello" hidden></p>
+<div class="l-col" style="align-items:center;padding:12px 0">
+  <button type="button" class="l-act l-main go" id="tap"><span class="l-i" style="font-size:34px">&#128075;</span><span class="l-l">Say hello</span></button>
+  <p class="l-note" id="note" role="status">Tap to say hello on the TV.</p>
+</div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var note = document.getElementById("note"), me = L.me();   // me: { name } the person chose, or null
+    if (L.screen.view === "guest") {
+      document.body.className = "guest";
+      var hi = document.getElementById("hello"); hi.hidden = false; hi.textContent = me ? "Hi " + me.name : "Hi";
+    }
+    document.getElementById("tap").addEventListener("click", function () {
+      // The owner's phone: if the app is not on the TV yet, put it there first
+      if (L.screen.view === "controller" && !L.status.onScreen) { L.show(); return; }
+      L.send({ type: "tap" });
+      note.textContent = "Sent.";
+    });
+    L.on("seen", function () { note.textContent = "The TV said hello back" + (me ? ", " + me.name : "") + "."; });
+  });
+})();
+</script>
+</body>
+</html>

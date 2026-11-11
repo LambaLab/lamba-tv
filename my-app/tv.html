@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My app</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700&display=swap">
+<!--
+  My app, the TV page: the big screen across the room (lamba.json screens.tv). The same page also draws the copy of the
+  TV on the owner's phone (view "preview") and the small pictures in the settings drawer (view "picture").
+
+  The TV page is the authority: it keeps the time and the state, and saves what must last in Lamba.store. Phones send
+  it commands with Lamba.send, it answers with Lamba.send too.
+
+  Old TV browsers run this page (Chrome 61): write ES5 only. No let or const, no arrow functions, no ?. or ??, no flex
+  gap, no clamp(). No video or audio elements here: films with Lamba.film, sound with Lamba.sound.context() (Web Audio).
+  Size things with vh so they read from across the room.
+
+  Docs: https://lamba.tv/devs/docs/   Try it: https://lamba.tv/devs/simulator/
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; }
+body { display: -webkit-box; display: flex; -webkit-box-align: center; align-items: center; -webkit-box-pack: center; justify-content: center; text-align: center; transition: background-color .6s ease, color .6s ease; }
+h1 { margin: 0; font-size: 14vh; font-weight: 700; letter-spacing: -.02em; }
+p { margin: 3vh 0 0; font-size: 4.4vh; opacity: .75; }
+.pop { display: inline-block; -webkit-animation: pop .7s ease; animation: pop .7s ease; }
+@-webkit-keyframes pop { 40% { -webkit-transform: scale(1.12); } }
+@keyframes pop { 40% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .pop { -webkit-animation: none; animation: none; } }
+</style>
+</head>
+<body>
+<div><h1 id="big">My app</h1><p id="line"></p></div>
+<!-- The SDK. On Lamba an app lives at /apps/<id>/, so this address is always ../../shell/sdk/lamba.js -->
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  // Your colours for each choice of the "look" setting (lamba.json settings.fields.look): [background, words]
+  var LOOK = { sea: ["#123c46", "#e6fbf4"], sun: ["#ffcf5c", "#2b1d05"], night: ["#0d0d12", "#f2f2f6"] };
+
+  Lamba.ready(function (L) {
+    // Everything is ready here: L.settings, L.screen, L.players, L.store...
+    var big = document.getElementById("big"), line = document.getElementById("line");
+    var isTv = L.screen.view === "screen";   // the real TV (not the copy on the phone, not a small picture)
+
+    // 1. Draw the look. The settings drawer's small pictures (view "picture", "live" in lamba.json) are this page too,
+    //    given the choice they show in L.settings.
+    function paint() {
+      var c = LOOK[L.settings.look] || LOOK.sea;
+      document.body.style.background = c[0]; document.body.style.color = c[1];
+      L.colours({ board: c[0], ink: c[1] });   // so the host's frame styles match your colours
+    }
+    // 2. Say how many taps there have been (kept in Lamba.store, so a TV that restarts remembers)
+    function count() {
+      var n = L.store.get("taps") || 0;
+      line.textContent = n ? n + (n === 1 ? " tap so far" : " taps so far") : "Scan to join from your phone";
+    }
+    // 3. The host's join card: big while nobody is here, in the corner once someone plays
+    function card() { if (isTv) L.joinCard({ show: true, size: L.players.length ? "corner" : "full", line: "Scan to join" }); }
+
+    // A phone tapped (from: a player's id like "v1", or "owner")
+    L.on("tap", function (m, from) {
+      var p = L.players.filter(function (x) { return x.id === from; })[0];
+      var name = p && p.name && L.settings.names ? p.name : "";
+      big.innerHTML = '<span class="pop">Hello</span>';
+      if (name) big.appendChild(document.createTextNode(" " + name));   // text, never markup: names come from people
+      if (!isTv) return;   // only the real TV decides and saves
+      L.store.set("taps", (L.store.get("taps") || 0) + 1); count();   // store.on hears changes made elsewhere, not this page's own
+      chime();
+      if (from) L.send({ type: "seen" }, from === "owner" ? "phones" : from);   // answer that phone
+    });
+
+    // A short chime with Web Audio (lamba.json asks for "sound"). TVs allow sound after a remote's button.
+    function chime() {
+      var ac = L.sound.context(); if (!ac || !L.sound.unlocked) return;
+      var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.frequency.value = 660; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.65);
+    }
+
+    L.onSettings(paint);   // the owner changed a setting
+    L.onPlayers(card);     // someone joined or left
+    L.store.on(count);     // saved data changed (on the copy, it follows the TV)
+    paint(); count(); card();
+    L.drawn();             // tell the host the page is ready: it fades in
+  });
+})();
+</script>
+</body>
+</html>

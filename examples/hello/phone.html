@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Hello</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!-- Hello on a phone: a guest's page (view "guest", the whole screen) and the owner's controller (under the copy of the TV) -->
+<style>
+body.guest { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="l-col" style="align-items:center;padding:12px 0">
+  <button type="button" class="l-act l-main go" id="wave"><span class="l-i" style="font-size:38px">&#128075;</span><span class="l-l">Wave</span></button>
+  <p class="l-note" id="note" role="status">Tap to wave at the TV.</p>
+</div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    if (L.screen.view === "guest") document.body.className = "guest";
+    var note = document.getElementById("note"), me = L.me();
+    document.getElementById("wave").addEventListener("click", function () { L.send({ type: "wave" }); note.textContent = "Waving…"; });
+    L.on("seen", function () { note.textContent = "The TV waved back" + (me ? ", " + me.name : "") + "."; });
+  });
+})();
+</script>
+</body>
+</html>
