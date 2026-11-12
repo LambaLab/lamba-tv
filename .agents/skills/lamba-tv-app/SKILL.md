@@ -1,6 +1,6 @@
 ---
 name: lamba-tv-app
-description: Build, check, test and upload a Lamba TV app (a folder with lamba.json, tv.html and phone.html for the TV in a family living room and the phones in the room). Use for any work on a Lamba app, its lamba.json, its TV or phone page, its settings, its clips, or sending it to Lamba for review.
+description: Build, check, test and upload a Lamba TV app (a folder with lamba.json, tv.html and phone.html for any screen and the phones in front of it). Use for any work on a Lamba app, its lamba.json, its TV or phone page, its settings, its clips, or sending it to Lamba for review.
 ---
 
 # Lamba TV app

@@ -1,6 +1,6 @@
 # Building a Lamba TV app
 
-You are building an app for Lamba TV: calm things on the TV in a family living room, with the people in the room
+You are building an app for Lamba TV: calm things on any screen, at home or wherever people gather, with the people in front of it
 joining from their phones. Children use it. Follow these instructions exactly. They win over your habits.
 
 **One app, one function.** Lamba TV apps are small apps that do one thing well: a quiz, a countdown, a drawing game.
