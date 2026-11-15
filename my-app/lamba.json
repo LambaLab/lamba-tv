@@ -8,7 +8,7 @@
  "icon": "icon.svg",
  "card": "card.svg",
  "tint": ["#2a6f8f", "#123c46"],
- "clips": [["my-app-tv", "What the TV shows"], ["my-app-phone", "What a phone does"]],
+ "clips": [["my-app-tv", "What the screen shows"], ["my-app-phone", "What a phone does"]],
  "page": {
   "facts": [["Players", "Up to 4", "each on their own phone"]],
   "about": [{ "h": "What it is", "p": "Say in a few calm sentences what your app is for and who it is for." }]

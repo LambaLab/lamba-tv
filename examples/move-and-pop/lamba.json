@@ -1,0 +1,108 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "move-and-pop",
+ "name": "Move and pop",
+ "sub": "Tilt to steer, wave to pop",
+ "about": "Steer a ball by tilting your phone, or pop bubbles by waving at its camera",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": [
+  "#2a6f8f",
+  "#0f2f3f"
+ ],
+ "clips": [
+  [
+   "move-and-pop-play",
+   "Tilt to steer the ball, wave to pop the bubbles"
+  ],
+  [
+   "move-and-pop-phone",
+   "Two ways to play, one tap each"
+  ],
+  [
+   "move-and-pop-settings",
+   "Choose the look, the TV changes"
+  ]
+ ],
+ "page": {
+  "facts": [
+   [
+    "Players",
+    "1",
+    "on their own phone"
+   ],
+   [
+    "Needs",
+    "Motion or camera",
+    "the phone asks first"
+   ]
+  ],
+  "about": [
+   {
+    "h": "Move and pop",
+    "p": "Tip your phone to steer a ball into the bubbles, or wave at the phone's camera to pop them with your hand. The picture from the camera stays on the phone."
+   }
+  ]
+ },
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 0,
+  "max": 1
+ },
+ "guests": true,
+ "age": "all",
+ "category": "party",
+ "permissions": [
+  "motion",
+  "camera"
+ ],
+ "outside": [],
+ "settings": {
+  "fields": {
+   "look": {
+    "type": "choice",
+    "default": "sea",
+    "choices": [
+     {
+      "id": "sea",
+      "name": "Sea",
+      "sub": "Deep blue green",
+      "picture": "live"
+     },
+     {
+      "id": "dusk",
+      "name": "Dusk",
+      "sub": "Calm and dark",
+      "picture": "live"
+     }
+    ]
+   }
+  },
+  "groups": [
+   {
+    "key": "look",
+    "label": "Look",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "look",
+      "label": "Look"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ }
+}

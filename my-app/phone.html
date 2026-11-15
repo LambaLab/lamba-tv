@@ -5,7 +5,7 @@
 <!-- Phone pages never zoom: keep user-scalable=no -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>My app</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;500;600;700&display=swap">
 <!-- Lamba's UI parts, so your app looks like every Lamba app (docs: Lamba UI parts) -->
 <link rel="stylesheet" href="../../shell/sdk/ui.css">
 <!--
@@ -24,7 +24,7 @@ body.guest { min-height: 100vh; display: flex; flex-direction: column; justify-c
 <p class="hello" id="hello" hidden></p>
 <div class="l-col" style="align-items:center;padding:12px 0">
   <button type="button" class="l-act l-main go" id="tap"><span class="l-i" style="font-size:34px">&#128075;</span><span class="l-l">Say hello</span></button>
-  <p class="l-note" id="note" role="status">Tap to say hello on the TV.</p>
+  <p class="l-note" id="note" role="status">Tap to say hello on the screen.</p>
 </div>
 <script src="../../shell/sdk/lamba.js"></script>
 <script>
@@ -42,7 +42,7 @@ body.guest { min-height: 100vh; display: flex; flex-direction: column; justify-c
       L.send({ type: "tap" });
       note.textContent = "Sent.";
     });
-    L.on("seen", function () { note.textContent = "The TV said hello back" + (me ? ", " + me.name : "") + "."; });
+    L.on("seen", function () { note.textContent = "The screen said hello back" + (me ? ", " + me.name : "") + "."; });
   });
 })();
 </script>

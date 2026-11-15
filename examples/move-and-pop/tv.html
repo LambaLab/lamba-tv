@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Move and pop</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@500;700&display=swap">
+<!--
+  Move and pop, the TV page: a ball and bubbles, moved by a phone's tilt or popped by a hand the phone's camera sees.
+
+  How it works:
+    - The phone (phone.html) keeps the sensors: Lamba.motion gives it tilt, Lamba.track gives it a body and hands. It sends the TV
+      SMALL messages, a few times a second, through Lamba.stream (never every camera frame):
+        { type: "steer", x, y }   tilt, -1 to 1 (y down): the ball speeds up that way
+        { type: "hand", x, y }    where the hand is, 0 to 1 across the screen (left to right as the person sees it)
+        { type: "hand", gone: true }
+        { type: "again" }         a shake: new bubbles
+    - The TV does the game: it moves the ball, pops bubbles and keeps the score. The camera picture never leaves the phone.
+  Old TV browsers (Chrome 61): ES5 only, no flex gap, no clamp().
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; background: var(--bg, #0f2f3f); }
+canvas { display: block; width: 100%; height: 100%; }
+#score { position: fixed; top: 4vh; left: 0; right: 0; text-align: center; font-size: 6vh; font-weight: 700; color: #e6fbf4; opacity: .85; }
+#hint { position: fixed; bottom: 6vh; left: 0; right: 0; text-align: center; font-size: 4vh; color: #e6fbf4; opacity: .7; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas><div id="score"></div><div id="hint"></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LOOK = { sea: ["#0f2f3f", "#9fe0ff"], dusk: ["#1c1830", "#d6c4ff"] };
+  Lamba.ready(function (L) {
+    var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 0, H = 0, score = 0;
+    var ball = { x: 0.5, y: 0.5, vx: 0, vy: 0 }, steer = { x: 0, y: 0 }, hand = null, handAt = 0, bubbles = [];
+    var picture = L.screen.view === "picture";
+    function size() { W = cv.width = cv.clientWidth; H = cv.height = cv.clientHeight; }
+    function look() { return LOOK[L.settings.look] || LOOK.sea; }
+    function paint() { document.body.style.setProperty("--bg", look()[0]); }
+    function fill() { bubbles = []; for (var i = 0; i < 6; i++) bubbles.push({ x: 0.1 + Math.random() * 0.8, y: 0.15 + Math.random() * 0.7, r: 0.04 + Math.random() * 0.04, t: Math.random() * 6 }); }
+    function note() { document.getElementById("score").textContent = score ? String(score) : ""; document.getElementById("hint").textContent = score || picture ? "" : "Tilt or wave on your phone"; }
+    function pop(b) { bubbles.splice(bubbles.indexOf(b), 1); score++; note(); bubbles.push({ x: 0.1 + Math.random() * 0.8, y: 0.15 + Math.random() * 0.7, r: 0.04 + Math.random() * 0.04, t: 0 }); }
+    L.on("steer", function (m) { steer.x = +m.x || 0; steer.y = +m.y || 0; });
+    L.on("hand", function (m) { if (m.gone) hand = null; else { hand = { x: +m.x || 0, y: +m.y || 0 }; handAt = Date.now(); } });
+    L.on("again", function () { fill(); });
+    L.onSettings(paint); paint(); fill(); note(); size(); window.addEventListener("resize", size);
+    var last = Date.now();
+    function frame() {
+      var now = Date.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+      // the ball: tilt speeds it up, it slows down on its own, and the edges send it back
+      ball.vx = (ball.vx + steer.x * 0.9 * dt) * 0.985; ball.vy = (ball.vy + steer.y * 0.9 * dt) * 0.985;
+      ball.x += ball.vx * dt * 3; ball.y += ball.vy * dt * 3;
+      if (ball.x < 0.03 || ball.x > 0.97) { ball.vx = -ball.vx * 0.6; ball.x = Math.max(0.03, Math.min(0.97, ball.x)); }
+      if (ball.y < 0.05 || ball.y > 0.95) { ball.vy = -ball.vy * 0.6; ball.y = Math.max(0.05, Math.min(0.95, ball.y)); }
+      if (hand && now - handAt > 700) hand = null;
+      var a = W / (H || 1), i, b, d;
+      g.clearRect(0, 0, W, H); g.lineWidth = Math.max(2, H * 0.006); g.strokeStyle = look()[1];
+      for (i = bubbles.length - 1; i >= 0; i--) {
+        b = bubbles[i]; b.t += dt; var bx = b.x * W, by = (b.y + Math.sin(b.t) * 0.015) * H, br = b.r * H * 1.8;
+        g.globalAlpha = 0.85; g.beginPath(); g.arc(bx, by, br, 0, 6.2832); g.stroke();
+        d = Math.sqrt(Math.pow(ball.x * W - bx, 2) + Math.pow(ball.y * H - by, 2)); if (d < br + H * 0.03) { pop(b); continue; }
+        if (hand) { d = Math.sqrt(Math.pow(hand.x * W - bx, 2) + Math.pow(hand.y * H - by, 2)); if (d < br + H * 0.04) pop(b); }
+      }
+      g.globalAlpha = 1; g.fillStyle = look()[1]; g.beginPath(); g.arc(ball.x * W, ball.y * H, H * 0.03, 0, 6.2832); g.fill();
+      if (hand) { g.globalAlpha = 0.6; g.beginPath(); g.arc(hand.x * W, hand.y * H, H * 0.045, 0, 6.2832); g.stroke(); }
+      requestAnimationFrame(frame);
+    }
+    frame(); L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

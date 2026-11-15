@@ -2,12 +2,13 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "$id": "https://lamba.tv/devs/kit/lamba.schema.json",
  "title": "lamba.json, version 1",
- "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
+ "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a colours setting's default holds min to max colours; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
  "x-checker-only": [
   "players.min is at most players.max",
   "a choice setting's default is one of its choices, and each choice id is used once",
   "a number setting has min below max, its default between them, and one label per step",
   "a text setting's default is no longer than its max",
+  "a colours setting's default holds min to max colours",
   "a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max",
   "resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden",
   "group keys are used once, and a group's part keys once",
@@ -290,6 +291,26 @@
    ],
    "description": "Where players find it: one of games, party, kids, learning, art, music, clocks, calm, photos, sports, tools"
   },
+  "categories": {
+   "type": "array",
+   "minItems": 1,
+   "maxItems": 3,
+   "uniqueItems": true,
+   "items": {
+    "enum": [
+     "games",
+     "kids",
+     "friends",
+     "ambient",
+     "create",
+     "clocks",
+     "art",
+     "music",
+     "tools"
+    ]
+   },
+   "description": "The tabs of the phone's app list it sits in: 1 to 3 of games, kids, friends, ambient, create, clocks, art, music, tools. Left out, they come from category and guests"
+  },
   "permissions": {
    "type": "array",
    "items": {
@@ -317,6 +338,13 @@
   },
   "listed": {
    "type": "boolean"
+  },
+  "liveCard": {
+   "type": "boolean"
+  },
+  "frame": {
+   "const": "none",
+   "description": "\"none\": the app starts without a frame or mat (the owner can still pick one)"
   },
   "position": {
    "type": "object",
@@ -498,6 +526,7 @@
             "bright",
             "guest",
             "scribble",
+            "effects",
             "line",
             "visitors"
            ]
@@ -695,6 +724,34 @@
     }
    },
    "description": "A kids app: age all or 7+, and no outside addresses"
+  },
+  {
+   "if": {
+    "required": [
+     "categories"
+    ],
+    "properties": {
+     "categories": {
+      "contains": {
+       "const": "kids"
+      }
+     }
+    }
+   },
+   "then": {
+    "properties": {
+     "age": {
+      "enum": [
+       "all",
+       "7+"
+      ]
+     },
+     "outside": {
+      "maxItems": 0
+     }
+    }
+   },
+   "description": "An app on the kids shelf: age all or 7+, and no outside addresses"
   }
  ],
  "$defs": {
@@ -837,7 +894,10 @@
       "number",
       "text",
       "list",
-      "colour"
+      "colour",
+      "colours",
+      "strokes",
+      "transforms"
      ]
     }
    },
@@ -1080,6 +1140,9 @@
        },
        "default": {
         "type": "string"
+       },
+       "multiline": {
+        "type": "boolean"
        }
       }
      }
@@ -1171,6 +1234,162 @@
           }
          }
         }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "colours"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "max",
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "max": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 12
+       },
+       "min": {
+        "type": "integer",
+        "minimum": 0
+       },
+       "default": {
+        "type": "array",
+        "items": {
+         "type": "string",
+         "pattern": "^#[0-9a-fA-F]{6}$",
+         "description": "A colour, #rrggbb"
+        }
+       },
+       "swatches": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 24,
+        "items": {
+         "type": "object",
+         "required": [
+          "name",
+          "hex"
+         ],
+         "properties": {
+          "name": {
+           "type": "string",
+           "maxLength": 24,
+           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+           "description": "Words people read: at most 24 characters, no en or em dash"
+          },
+          "hex": {
+           "type": "string",
+           "pattern": "^#[0-9a-fA-F]{6}$",
+           "description": "A colour, #rrggbb"
+          }
+         }
+        },
+        "description": "The colours to pick from: the drawer shows the same colour strip and \"Your own colour\" picker as the Frame colour. Put the field in a group part to get it"
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "strokes"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "max",
+       "parts",
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "max": {
+        "type": "integer",
+        "minimum": 500,
+        "maximum": 12000
+       },
+       "parts": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 12
+       },
+       "default": {
+        "type": "object",
+        "required": [
+         "tubes"
+        ],
+        "properties": {
+         "tubes": {
+          "type": "array",
+          "maxItems": 0
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "transforms"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "default"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "default": {
+        "type": "object",
+        "maxProperties": 0
        }
       }
      }

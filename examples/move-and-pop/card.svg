@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><style>
+.b { animation: up 6s ease-in-out infinite; } .b2 { animation-delay: 1.5s; } .b3 { animation-delay: 3s; }
+@keyframes up { 0%, 100% { transform: translateY(10px); } 50% { transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) { .b { animation: none; } }
+</style>
+<rect x="56" y="22" width="208" height="134" fill="#141416"/><rect x="64" y="30" width="192" height="118" fill="#0f2f3f"/>
+<g fill="none" stroke="#9fe0ff" stroke-width="3"><circle class="b" cx="120" cy="70" r="16"/><circle class="b b2" cx="196" cy="92" r="22"/><circle class="b b3" cx="150" cy="118" r="12"/></g>
+<circle cx="168" cy="72" r="8" fill="#fff"/></svg>

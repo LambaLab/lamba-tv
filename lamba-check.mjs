@@ -6029,12 +6029,19 @@ const AVOID = new RegExp("\\b" + ["r", "a", "i", "n", "b", "o", "w"].join("") + 
 const DASH = /[\u2013\u2014]/;                            // en and em dashes: never in words people read
 // what the host keeps for itself in every app's settings (the frame round the app, and its brightness)
 const HOST_KEYS = ["frame", "frc", "fw", "mw", "matc", "fday", "fown", "fall", "bright"];
-const TYPES = ["choice", "switch", "number", "text", "list", "colour"];
+const TYPES = ["choice", "switch", "number", "text", "list", "colour", "colours", "strokes", "transforms"];
 const PERMISSIONS = ["sound", "camera", "motion", "country"];
 const AGES = ["all", "7+", "13+"];
 // the app's shelf on the phone and the showcase (optional for now; the listing on /devs asks for it)
 const CATEGORIES = ["games", "party", "kids", "learning", "art", "music", "clocks", "calm", "photos", "sports", "tools"];
+// the tabs of the phone's app list, where an app may name its own shelves ("categories": 1 to 3 of these). The same ids,
+// names and icons as shell/categories.js SHELF_IDS (tests/app-categories.test.mjs keeps the two the same); left out,
+// the shelves come from "category" and "guests" (shell/categories.js of)
+const SHELVES = ["games", "kids", "friends", "ambient", "create", "clocks", "art", "music", "tools"];
 const HOST_PARTS = ["frame", "mat", "brightness"];
+// the drawer's tiles the host draws itself, so no group of the app may take their key (or their address, &g=): its frame,
+// mat and brightness, "Try as a guest" (guest), "Scribble", "Effects", "Who's waiting" (line) and the visitors' settings
+const HOST_GROUPS = ["frame", "mat", "bright", "guest", "scribble", "effects", "line", "visitors"];
 const PICTURE_FILE = /^[a-z0-9][a-z0-9_./-]{0,80}\.(svg|png|webp|jpg|jpeg)$/i;
 
 // a path inside the app's folder: relative, no "..", no leading slash, no address
@@ -6084,13 +6091,18 @@ function checkRules(m, dir) {
   if (m.guests && !sc.phone) say("an app guests join needs screens.phone (the guests' page)");
   if (!AGES.includes(m.age)) say("age must be one of " + AGES.join(", "));
   if (m.category !== undefined && !CATEGORIES.includes(m.category)) say("category must be one of " + CATEGORIES.join(", "));
+  if (m.categories !== undefined && !(Array.isArray(m.categories) && m.categories.length >= 1 && m.categories.length <= 3 && m.categories.every(c => SHELVES.includes(c)) && new Set(m.categories).size === m.categories.length))
+    say("categories must be 1 to 3 of " + SHELVES.join(", ") + ", each once");
+  if (Array.isArray(m.categories) && m.categories.includes("kids") && m.age === "13+") say("an app on the kids shelf is for children: age \"all\" or \"7+\"");
+  if (Array.isArray(m.categories) && m.categories.includes("kids") && Array.isArray(m.outside) && m.outside.length) say("an app on the kids shelf reaches nothing outside Lamba: outside must be empty");
   // made for kids: for children's ages, and nothing reached outside Lamba
   if (m.category === "kids" && m.age === "13+") say("a kids app is for children: age \"all\" or \"7+\"");
   if (m.category === "kids" && Array.isArray(m.outside) && m.outside.length) say("a kids app reaches nothing outside Lamba: outside must be empty");
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PERMISSIONS.includes(p))) say("permissions must be a list of " + PERMISSIONS.join(", "));
   if (!Array.isArray(m.outside)) say("outside must be a list of https addresses (empty for none)");
   else m.outside.forEach(o => { if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(o || "")) say("outside: " + o + " must be https://host (no path)"); });
-  for (const k of ["stagingOnly", "notInDemo", "listed"]) if (m[k] !== undefined && typeof m[k] !== "boolean") say(k + " must be true or false");
+  if (m.frame !== undefined && m.frame !== "none") say("frame must be \"none\" (the app starts without a frame; the owner can still pick one)");
+  for (const k of ["stagingOnly", "notInDemo", "listed", "liveCard"]) if (m[k] !== undefined && typeof m[k] !== "boolean") say(k + " must be true or false");
   if (m.position !== undefined && !(m.position && typeof m.position.after === "string" && ID.test(m.position.after))) say("position must be { after: <an app id> }");
   if (m.remote !== undefined && !(m.remote && typeof m.remote.ok === "boolean")) say("remote must be { ok: true | false }");
   if (m.legacy !== undefined) {
@@ -6130,7 +6142,7 @@ function checkSettings(m, dir, say, str, file) {
     if (!KEY.test(k)) say(w + ": a setting's key is a letter then letters or digits (at most 24)");
     if (HOST_KEYS.includes(k)) say(w + ": " + k + " belongs to the host (frame, mat and brightness are added by the host)");
     if (!f || typeof f !== "object" || !TYPES.includes(f.type)) { say(w + ".type must be one of " + TYPES.join(", ")); continue; }
-    if (f.apply !== undefined && !["now", "send"].includes(f.apply)) say(w + ".apply must be \"now\" (at once) or \"send\" (with Send to TV)");
+    if (f.apply !== undefined && !["now", "send"].includes(f.apply)) say(w + ".apply must be \"now\" (at once) or \"send\" (with Send to screen)");
     if (f.resets !== undefined && (!Array.isArray(f.resets) || f.resets.some(r => !keys.includes(r)))) say(w + ".resets must list other settings");
     const choiceList = c => {
       if (!Array.isArray(c) || !c.length || c.length > 120) { say(w + ".choices must be a list of 1 to 120"); return []; }
@@ -6159,6 +6171,7 @@ function checkSettings(m, dir, say, str, file) {
     } else if (f.type === "text") {
       if (!Number.isInteger(f.max) || f.max < 1 || f.max > 200) say(w + ".max must be 1 to 200 characters");
       if (typeof f.default !== "string" || f.default.length > (f.max || 0)) say(w + ".default must be text no longer than max");
+      if (f.multiline !== undefined && typeof f.multiline !== "boolean") say(w + ".multiline must be true or false (line breaks kept)");
     } else if (f.type === "list") {
       if (!Array.isArray(f.of) || !f.of.length || f.of.length > 200 || f.of.some(x => typeof x !== "string" || !CHOICE.test(x))) say(w + ".of must list the ids it may hold");
       if (!Number.isInteger(f.min) || !Number.isInteger(f.max) || f.min < 0 || f.min > f.max) say(w + " needs min and max (how many it holds)");
@@ -6170,17 +6183,33 @@ function checkSettings(m, dir, say, str, file) {
     } else if (f.type === "colour") {
       if (!HEX.test(f.default || "")) say(w + ".default must be a colour (#rrggbb)");
       if (f.choices !== undefined) choiceList(f.choices).forEach(id => { if (!HEX.test(id || "")) say(w + ".choices: each id is a colour (#rrggbb)"); });
+    } else if (f.type === "colours") {
+      if (f.swatches !== undefined) {
+        if (!Array.isArray(f.swatches) || f.swatches.length < 2 || f.swatches.length > 24) say(w + ".swatches must be 2 to 24 of { name, hex }");
+        else f.swatches.forEach((x, i) => { if (!x || typeof x !== "object" || !HEX.test(x.hex || "")) say(w + ".swatches[" + i + "].hex must be a colour (#rrggbb)"); str(x && x.name, 24, w + ".swatches[" + i + "].name"); });
+      }
+      if (!Number.isInteger(f.max) || f.max < 1 || f.max > 12) say(w + ".max must be 1 to 12 colours");
+      if (f.min !== undefined && (!Number.isInteger(f.min) || f.min < 0 || f.min > (f.max || 0))) say(w + ".min must be 0 up to max");
+      if (!Array.isArray(f.default) || f.default.length > (f.max || 0) || f.default.length < (f.min || 0) || f.default.some(x => !HEX.test(x || ""))) say(w + ".default must be a list of colours (#rrggbb), min to max of them");
+    } else if (f.type === "transforms") {
+      if (!f.default || typeof f.default !== "object" || Array.isArray(f.default) || Object.keys(f.default).length) say(w + ".default must be {} (nothing moved yet)");
+    } else if (f.type === "strokes") {
+      if (!Number.isInteger(f.max) || f.max < 500 || f.max > 12000) say(w + ".max must be 500 to 12000 (the most characters of JSON the strokes may take)");
+      if (!Number.isInteger(f.parts) || f.parts < 1 || f.parts > 12) say(w + ".parts must be 1 to 12 (how many parts, each with its own colour, the strokes fall into)");
+      if (!f.default || typeof f.default !== "object" || !Array.isArray(f.default.tubes) || f.default.tubes.length) say(w + ".default must be { \"tubes\": [], \"names\": [] } (the app draws its own starting picture)");
     }
   }
   // the groups: tiles in the order shown; host parts placed where they are listed
   const seen = new Set(), used = new Set();
   if (!S.groups.length || S.groups.length > 16) say("settings.groups: 1 to 16");
+  // "live" draws the whole picture, the same on every tile it is on: one tile may show it, the rest need their own icon (Neon, Nov 2026)
+  if (S.groups.filter(g => g && g.icon === "live").length > 1) say("settings.groups: only one group's icon may be \"live\" (it is the whole picture, so two look the same); give the others { \"icon\": \"pictures/x.svg\" }");
   S.groups.forEach((g, i) => {
     const w = "settings.groups[" + i + "]";
     if (!g || typeof g !== "object") { say(w + " must be an object"); return; }
     if (g.host !== undefined) { if (!HOST_PARTS.includes(g.host)) say(w + ".host must be one of " + HOST_PARTS.join(", ")); if (seen.has("host:" + g.host)) say(w + ": " + g.host + " twice"); seen.add("host:" + g.host); return; }
     if (typeof g.key !== "string" || !GROUP.test(g.key)) say(w + ".key must be small letters, digits or dashes"); if (seen.has(g.key)) say(w + ".key " + g.key + " twice"); seen.add(g.key);
-    if (["frame", "mat", "bright", "guest", "scribble", "line", "visitors"].includes(g.key)) say(w + ".key " + g.key + " is kept for the host");
+    if (HOST_GROUPS.includes(g.key)) say(w + ".key " + g.key + " is kept for the host");
     str(g.label, 24, w + ".label");
     if (g.value !== undefined && g.value !== "app") say(w + ".value must be \"app\" (the phone page describes it) or left out (the current choice)");
     checkPicture(g.icon, dir, say, w + ".icon", file);
@@ -6197,20 +6226,20 @@ function checkSettings(m, dir, say, str, file) {
     });
   });
   for (const h of HOST_PARTS) if (!seen.has("host:" + h)) say("settings.groups: place { \"host\": \"" + h + "\" } where the host's " + h + " goes");
-  keys.forEach(k => { if (!used.has(k) && !S.fields[k].hidden) say("settings.fields." + k + " is in no group (or mark it hidden: true)"); });
+  keys.forEach(k => { if (!used.has(k) && !(S.fields[k] && S.fields[k].hidden)) say("settings.fields." + k + " is in no group (or mark it hidden: true)"); });
 }
 
 // what a host needs from one manifest (the registry entry): everything except what only the developer needs
 function registryEntry(m) {
   const e = JSON.parse(JSON.stringify(m));
   delete e.lamba; delete e.$schema;
-  e.clips = m.clips || []; e.listed = m.listed !== false; e.stagingOnly = m.stagingOnly === true; e.notInDemo = m.notInDemo !== false;
+  e.clips = m.clips || []; e.listed = m.listed !== false; e.stagingOnly = m.stagingOnly === true; e.notInDemo = m.notInDemo !== false; e.liveCard = m.liveCard === true;
   e.live = Object.keys((m.settings || {}).fields || {}).filter(k => m.settings.fields[k].apply === "now");   // settings that go to the TV at once
   return e;
 }
 
 
-return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, HOST_PARTS, inside, checkRules, registryEntry };
+return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, SHELVES, HOST_PARTS, HOST_GROUPS, inside, checkRules, registryEntry };
 })();
 
 // ---- tools/sdk_check.mjs ----
@@ -6228,10 +6257,14 @@ const M_files = (() => {
 // The rules, each with a plain sentence when something is wrong:
 //   2. the TV page has no <video> or <audio> (films go through Lamba.film, sound through Web Audio)
 //   3. every script the TV page runs (inline, its own files, the SDK) parses on Chrome 61, the oldest TV engine
-//   4. the pages load only their own files, the SDK (shell/sdk/) and Google Fonts, and every page loads shell/sdk/lamba.js
+//   4. the pages load only their own files, the SDK (shell/sdk/) and Google Fonts through Lamba (/fonts/, Lamba.fonts), and every page loads shell/sdk/lamba.js
 //   5. phone pages never zoom (the viewport says user-scalable=no)
 //   6. no address outside Lamba is reached unless lamba.json declares it in outside
 //   7. no en or em dash anywhere people could read it (the app's pages, scripts and lamba.json)
+//   9. Lamba.motion and Lamba.track (the phone's motion and camera) only on a phone page, and only when lamba.json declares "motion" or
+//      "camera" in permissions; no getUserMedia or device motion events of its own (the host keeps the sensors: the picture never reaches the app)
+//   8. the phone's controls are the shared ones: no <input type=range> or type=color of its own, no grid of colour dots or
+//      swatches (a colours setting with swatches in lamba.json gets the drawer's colour strip and picker), no LambaUI.colours
 const { inside } = M_rules;
 
 const TEXT = [".html", ".js", ".css", ".json", ".svg", ".md", ".txt"];
@@ -6246,6 +6279,8 @@ function where(from, ref) {
   return null;
 }
 
+const GOOGLE = /^https?:\/\/fonts\.(googleapis|gstatic)\.com/;
+
 function checkFiles(o) {
   const m = o.manifest || {}, P = [], say = s => P.push(s), acorn = o.acorn || null;
   const has = new Set(o.paths || []), text = p => (has.has(p) ? o.text(p) : null);
@@ -6257,7 +6292,7 @@ function checkFiles(o) {
     return { inline, srcs };
   };
   const allowedRef = (from, ref) => {
-    if (/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(ref)) return true;
+    if (/^\/fonts\/(css2\?|gs\/s\/)/.test(ref)) return true;   // Google Fonts through Lamba's own address (Lamba.fonts, worker/fonts.js)
     if (/^(data:|#|mailto:)/.test(ref)) return true;
     if (/^[a-z]+:/i.test(ref) || ref.startsWith("//") || ref.startsWith("/")) return false;
     return where(from, ref) !== null;
@@ -6268,13 +6303,13 @@ function checkFiles(o) {
     const isTv = p === screens.tv || p === screens.picture;
     // 2. no video or audio on the TV page (and none made by its scripts)
     if (isTv) {
-      if (/<(video|audio)\b/i.test(html)) say(p + ": has a <video> or <audio> element (a TV page never does: use Lamba.film and Web Audio)");
+      if (/<(video|audio)\b/i.test(html)) say(p + ": has a <video> or <audio> element (a screen page never does: use Lamba.film and Web Audio)");
       const own = srcs.filter(s => allowedRef(p, s)).map(s => where(p, s)).filter(f => f && f.indexOf("@sdk/") !== 0 && has.has(f));
       [...inline, ...own.map(text)].forEach((code, i) => { if (/createElement\(\s*["'](video|audio)["']\s*\)|new\s+Audio\s*\(/.test(code)) say(p + ": a script makes a video or audio element (" + (i < inline.length ? "inline script " + (i + 1) : own[i - inline.length]) + ")"); });
       // 3. parses on Chrome 61
       if (!acorn) say("can't read scripts as Chrome 61 would: run npm install once (acorn)");
       else {
-        const parse = (code, what) => { try { acorn.parse(code, { ecmaVersion: 2017, sourceType: "script", allowReturnOutsideFunction: false }); } catch (e) { say(p + ": " + what + " does not run on Chrome 61 (old TVs): " + e.message); } };
+        const parse = (code, what) => { try { acorn.parse(code, { ecmaVersion: 2017, sourceType: "script", allowReturnOutsideFunction: false }); } catch (e) { say(p + ": " + what + " does not run on Chrome 61 (old screens): " + e.message); } };
         inline.forEach((c, i) => parse(c, "inline script " + (i + 1)));
         srcs.forEach(s => {
           const f = allowedRef(p, s) ? where(p, s) : null; if (!f) return;
@@ -6283,24 +6318,46 @@ function checkFiles(o) {
         });
       }
     }
-    // 4. only its own files, the SDK and Google Fonts; lamba.js on every page
-    for (const r of html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)) if (!allowedRef(p, r[1])) say(p + ": loads " + r[1] + " (only the app's own files, ../../shell/sdk/ and Google Fonts)");
+    // 4. only its own files, the SDK and Lamba's /fonts/ (never Google's address); lamba.js on every page
+    for (const r of html.matchAll(/\b(?:src|href)\s*=\s*["']([^"']+)["']/gi)) if (!allowedRef(p, r[1])) say(p + ": loads " + r[1] + (GOOGLE.test(r[1]) ? " straight from Google (fonts come through Lamba: use Lamba.fonts, or /fonts/css2?family=Name:wght@400 for a fixed font)" : " (only the app's own files, ../../shell/sdk/ and /fonts/ through Lamba.fonts)"));
     if (!srcs.some(s => /(^|\/)shell\/sdk\/lamba\.js$/.test(s))) say(p + ": does not load ../../shell/sdk/lamba.js");
     // 5. a phone page never zooms
     if (p === screens.phone) { const vp = (html.match(/<meta[^>]+name=["']viewport["'][^>]*>/i) || [""])[0]; if (!/user-scalable\s*=\s*no/.test(vp)) say(p + ": the viewport needs user-scalable=no (phone pages never zoom)"); }
   }
-  // 6. outside addresses: any https?:// in the app's pages, scripts and styles that isn't Google Fonts or declared
+  // 6. outside addresses: any https?:// in the app's pages, scripts and styles that isn't declared (Google Fonts go through Lamba.fonts, never direct)
   const declared = Array.isArray(m.outside) ? m.outside : [];
-  const fine = u => /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(u) || /^http:\/\/www\.w3\.org\//.test(u) || declared.some(d => u === d || u.startsWith(d + "/"));
+  const fine = u => /^http:\/\/www\.w3\.org\//.test(u) || declared.some(d => u === d || u.startsWith(d + "/"));
   const texts = [...has].filter(f => TEXT.includes(ext(f)));
   for (const f of texts.filter(f => [".html", ".js", ".css"].includes(ext(f)))) {
     const code = (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
-    for (const u of code.matchAll(/\b(?:https?|wss?):\/\/[^\s"'`)<>]+/g)) if (!fine(u[0])) say(f + ": reaches " + u[0] + ", which lamba.json does not declare in outside");
-    if (/\bnew\s+WebSocket\s*\(|\bEventSource\s*\(|navigator\.sendBeacon/.test(code)) say(f + ": opens its own connection (talk to the TV and phones with Lamba.send)");
+    for (const u of code.matchAll(/\b(?:https?|wss?):\/\/[^\s"'`)<>]+/g)) if (!fine(u[0])) say(f + ": reaches " + u[0] + (GOOGLE.test(u[0]) ? " straight from Google (fonts come through Lamba: use Lamba.fonts)" : ", which lamba.json does not declare in outside"));
+    if (/\bnew\s+WebSocket\s*\(|\bEventSource\s*\(|navigator\.sendBeacon/.test(code)) say(f + ": opens its own connection (talk to the screen and phones with Lamba.send)");
     if (/\b(localStorage|sessionStorage|indexedDB|document\.cookie)\b/.test(code)) say(f + ": uses the browser's storage, which a sealed app does not have (use Lamba.store)");
   }
   // 7. no en or em dash
   for (const f of texts) { const lines = (text(f) || "").split("\n"); lines.forEach((l, i) => { if (/[\u2013\u2014]/.test(l)) say(f + ":" + (i + 1) + ": an en or em dash (use a comma, a full stop, or rewrite it)"); }); }
+  // 8. shared controls only: no home-made slider, colour box or colour grid in the phone's pages and scripts
+  const phoneFiles = [...has].filter(f => [".html", ".js"].includes(ext(f)) && f !== screens.tv && !/^(shapes|templates)/.test(f.split("/").pop()));
+  for (const f of phoneFiles) {
+    const code = (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+    if (/type\s*=\s*["']range["']|\.type\s*=\s*["']range["']|setAttribute\(\s*["']type["']\s*,\s*["']range["']/.test(code)) say(f + ": a home-made slider (<input type=range>): use a number setting, the drawer's shared dial");
+    if (/type\s*=\s*["']color["']|\.type\s*=\s*["']color["']/.test(code)) say(f + ": a home-made colour box (type=color): use a colours or colour setting with swatches");
+    if (/LambaUI\.colours\b/.test(code)) say(f + ": LambaUI.colours is gone: give the colours setting swatches in lamba.json and put it in a group part (the drawer draws the shared colour strip and picker)");
+    if (/(className|class)\s*=\s*["'][^"']*\b(swatch|swatches|colou?r-?(grid|dots?|picker|chips?)|dots?-?grid)\b/i.test(code) || /classList\.add\(\s*["'][^"']*(swatch|colou?r-?(grid|dots?|picker))/i.test(code)) say(f + ": a home-made colour grid or picker: use a colours or colour setting with swatches (the drawer draws the shared strip and picker)");
+  }
+  // 9. the phone's motion and camera: declared, on a phone page, and through Lamba (never the browser's own)
+  const perms = Array.isArray(m.permissions) ? m.permissions : [], tvFiles = new Set([screens.tv, screens.picture].filter(Boolean));
+  for (const t of [...tvFiles]) { const h = text(t); if (h !== null) scriptsOf(h).srcs.forEach(s => { const f = allowedRef(t, s) ? where(t, s) : null; if (f && f.indexOf("@sdk/") !== 0) tvFiles.add(f); }); }
+  for (const f of [...has].filter(f => [".html", ".js"].includes(ext(f)))) {
+    const code = (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+    for (const [use, perm, name] of [[/\bLamba\s*\.\s*motion\b/, "motion", "Lamba.motion"], [/\bLamba\s*\.\s*track\b/, "camera", "Lamba.track"]]) {
+      if (!use.test(code)) continue;
+      if (!perms.includes(perm)) say(f + ": uses " + name + " but lamba.json permissions does not include \"" + perm + "\" (add it: the host asks the person)");
+      if (tvFiles.has(f)) say(f + ": " + name + " is for the phone's pages (the TV has no " + (perm === "camera" ? "camera" : "motion sensors") + ")");
+    }
+    if (/\bgetUserMedia\b|\bmediaDevices\b/.test(code)) say(f + ": opens the camera itself (use Lamba.track: the host asks the person and the picture stays on the phone)");
+    if (/["'](devicemotion|deviceorientation|deviceorientationabsolute)["']|\b(DeviceMotionEvent|DeviceOrientationEvent)\b/.test(code)) say(f + ": reads the phone's sensors itself (use Lamba.motion: the host asks the person and calms the readings)");
+  }
   return P;
 }
 
@@ -6490,7 +6547,7 @@ return { LIMITS, TYPES, PLACEHOLDER_CLIPS, typeOf, checkUpload };
 // ---------- the command ----------
 // node lamba-check.mjs [folder ...]   with no folder: every folder here that has a lamba.json (or this one)
 // Each folder is checked as Lamba's server checks the zip you upload: the same code (above), on the same files.
-const RESERVED = ["admin","alarm","app","apps","art","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","graffiti","home","lamba","mini-golf","motion-lab","now-playing","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-hello","shell","stopwatch","tictactoe","timers","welcome","winter-window","write-along","x","youtube"];
+const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-hello","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","winter-window","write-along","x","youtube"];
 const SKIP = n => n === "node_modules" || n.startsWith(".");   // hidden files and folders stay out of an app's zip
 function walk(dir) {
   const out = [], hidden = [];

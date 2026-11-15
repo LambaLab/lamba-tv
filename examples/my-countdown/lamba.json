@@ -55,7 +55,7 @@
    },
    {
     "h": "At zero",
-    "p": "The screen glows softly and a gentle chime plays until you stop it, from your phone or with OK on the TV's remote. Add a minute, pause, or start it again whenever you like."
+    "p": "The screen glows softly and a gentle chime plays until you stop it, from your phone or with OK on the screen's remote. Add a minute, pause, or start it again whenever you like."
    },
    {
     "h": "What you control",
@@ -75,8 +75,8 @@
     ]
    },
    {
-    "h": "Sound on a TV",
-    "p": "TV browsers play sound only after a button press. Press OK on the TV's remote once, and your phone tells you while the sound is not on yet."
+    "h": "Sound on a screen",
+    "p": "Screen browsers play sound only after a button press. Press OK on the screen's remote once, and your phone tells you while the sound is not on yet."
    }
   ]
  },
@@ -90,10 +90,14 @@
  },
  "guests": false,
  "age": "all",
+ "categories": [
+  "tools"
+ ],
  "permissions": [
   "sound"
  ],
  "outside": [],
+ "liveCard": true,
  "remote": {
   "ok": true
  },
@@ -261,7 +265,9 @@
    {
     "key": "show",
     "label": "Display",
-    "icon": "live",
+    "icon": {
+     "icon": "pictures/display.svg"
+    },
     "parts": [
      {
       "setting": "ring",

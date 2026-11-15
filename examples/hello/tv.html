@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hello</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;700&display=swap">
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@500;700&display=swap">
 <!--
   Hello, the smallest SDK app (docs/sdk/README.md): the example to copy. The TV says hello; guests who join wave from
   their phones ({ type: "wave" }), the TV shows each wave and waves back to that guest ({ type: "seen" }). It counts
@@ -21,7 +21,7 @@ p { margin: 3vh 0 0; font-size: 4vh; opacity: .75; }
 </style>
 </head>
 <body>
-<div><h1 id="hi">Hello</h1><p id="line"></p></div>
+<div id="words"><h1 id="hi">Hello</h1><p id="line"></p></div>
 <script src="../../shell/sdk/lamba.js"></script>
 <script>
 (function () {
@@ -31,7 +31,9 @@ p { margin: 3vh 0 0; font-size: 4vh; opacity: .75; }
     var hi = document.getElementById("hi"), line = document.getElementById("line");
     var paint = function () { var c = LOOK[L.settings.bg] || LOOK.sea; document.body.style.background = c[0]; document.body.style.color = c[1]; L.colours({ board: c[0], ink: c[1] }); };
     var count = function () { var n = L.store.get("waves") || 0; line.textContent = n ? n + (n === 1 ? " wave so far" : " waves so far") : "Scan to wave from your phone"; };
-    var card = function () { if (L.screen.view === "screen") L.joinCard({ show: true, size: L.players.length ? "corner" : "full", line: "Scan to wave" }); };
+    // the join card: big while nobody has joined, beside the words (avoid: where they are, in shares of the screen)
+    var words = function () { var r = document.getElementById("words").getBoundingClientRect(), w = innerWidth || 1, h = innerHeight || 1; return [r.left / w, r.top / h, r.right / w, r.bottom / h]; };
+    var card = function () { if (L.screen.view === "screen") L.joinCard({ show: true, size: L.players.length ? "corner" : "full", line: "Scan to wave", avoid: words() }); };
     L.onSettings(paint); L.onPlayers(card); L.store.on(count);
     L.on("wave", function (m, from) {
       var p = L.players.filter(function (x) { return x.id === from; })[0], name = p && p.name && L.settings.names ? p.name : "";

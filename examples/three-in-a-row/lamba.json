@@ -14,7 +14,7 @@
  "clips": [
   [
    "three-in-a-row-board",
-   "The board on the TV"
+   "The board on the screen"
   ],
   [
    "three-in-a-row-phone",
@@ -37,7 +37,7 @@
   "about": [
    {
     "h": "Three in a row",
-    "p": "Two people join from their phones. The TV shows the board and says whose turn it is; each player taps a square on their own phone."
+    "p": "Two people join from their phones. The screen shows the board and says whose turn it is; each player taps a square on their own phone."
    }
   ]
  },

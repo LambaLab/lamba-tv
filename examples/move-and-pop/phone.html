@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Move and pop</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  Move and pop on a phone: two ways to play, both through Lamba (never the browser's own sensors or camera).
+    Lamba.motion.start()  Lamba's own screen asks the person (an iPhone asks from a tap). Then tilt, swing and shake events.
+    Lamba.track.start()   the phone asks "Use your camera?". Then frames of landmarks and gesture names, never the picture.
+  Both go to the TV as small messages, at most 20 a second, with Lamba.stream (straight over the Wi-Fi when the phone and TV can reach each other,
+  through the room when not: this page does not know and does not care).
+-->
+<style>
+body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); box-sizing: border-box; }
+.big { width: 100%; max-width: 380px; min-height: 64px; margin: 0 auto; border: 0; border-radius: 18px; background: var(--l-tile); color: var(--l-ink); font: 600 19px/1 inherit; cursor: pointer; touch-action: manipulation; }
+.big[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--l-ink) inset; }
+.say { margin: 4px 0 0; min-height: 1.4em; text-align: center; font-size: 17px; color: var(--l-sub); }
+.small { align-self: center; border: 0; background: none; color: var(--l-sub); font: 500 16px/1 inherit; min-height: 44px; cursor: pointer; }
+</style>
+</head>
+<body>
+<button class="big" id="tilt" type="button" aria-pressed="false">Tilt to steer</button>
+<button class="big" id="wave" type="button" aria-pressed="false">Wave to pop</button>
+<button class="small" id="flip" type="button" hidden>Switch camera</button>
+<p class="say" id="say" role="status"></p>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var say = function (t) { document.getElementById("say").textContent = t; };
+    var press = function (id, on) { document.getElementById(id).setAttribute("aria-pressed", on ? "true" : "false"); };
+    var steer = L.stream("steer", 20, "tv"), hand = L.stream("hand", 20, "tv"), session = null, off = [];
+
+    // ---- tilt to steer ----
+    document.getElementById("tilt").onclick = function () {
+      L.motion.start({ title: "Tip your phone to steer" }).then(function (state) {
+        if (state !== "on") { say(state === "finger" ? "Use the wave instead, or try again" : "This phone has no motion here"); return; }
+        stopWave(); press("tilt", true); say("Tip your phone");
+        off.push(L.motion.on("tilt", function (t) { steer({ x: t.x, y: t.y }); }));
+        off.push(L.motion.on("shake", function () { L.send({ type: "again" }, "tv"); }));
+      });
+    };
+
+    // ---- wave to pop ----
+    function stopWave() { if (session) { session.stop(); session = null; } hand.flush(); L.send({ type: "hand", gone: true }, "tv"); press("wave", false); }
+    function stopTilt() { off.splice(0).forEach(function (f) { f(); }); L.motion.stop(); press("tilt", false); steer({ x: 0, y: 0 }); }
+    document.getElementById("wave").onclick = function () {
+      if (session) { stopWave(); say(""); return; }
+      stopTilt();
+      session = L.track.start({ camera: "front", pose: true, hands: true, face: false, rate: 20, model: "auto" });   // "auto": the Tracking Lab's own light-to-full schedule
+      session.on("frame", function (f) {
+        // an index fingertip if a hand is seen, else the wrist; the image's x runs the other way on a front camera
+        var h = f.hands[0], p = h ? h.points[8] : f.pose && f.pose[16] && f.pose[16].v > 0.5 ? f.pose[16] : null;
+        if (!p) { hand({ gone: true }); return; }
+        hand({ x: f.mirror ? 1 - p.x : p.x, y: p.y });
+      });
+      session.ready.then(function () { press("wave", true); say("Wave at the camera"); }, function (e) { session = null; say(/denied/.test(e.message) ? "The camera is off for this app" : "No camera here"); });
+    };
+    // front and back, when this phone has both
+    L.track.cameras().then(function (c) { if (c.kind === "flip") { var b = document.getElementById("flip"); b.hidden = false; b.onclick = function () { if (session) session.switchCamera(); }; } }, function () {});
+  });
+})();
+</script>
+</body>
+</html>

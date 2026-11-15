@@ -1,6 +1,6 @@
 ---
 name: lamba-tv-app
-description: Build, check, test and upload a Lamba TV app (a folder with lamba.json, tv.html and phone.html for any screen and the phones in front of it). Use for any work on a Lamba app, its lamba.json, its TV or phone page, its settings, its clips, or sending it to Lamba for review.
+description: Build, check, test and upload a Lamba TV app (a folder with lamba.json, tv.html and phone.html for any screen and the phones in front of it). Use for any work on a Lamba app, its lamba.json, its screen or phone page, its settings, its clips, or sending it to Lamba for review.
 ---
 
 # Lamba TV app
@@ -23,12 +23,12 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
 4. **Write lamba.json first**: name (24), sub (40), about (80), `guests` and `players`, `permissions` (only what
    it uses), `outside` (empty unless needed), settings `fields` and `groups` with `{ "host": "frame" }`,
    `{ "host": "mat" }` and `{ "host": "brightness" }` each once.
-5. **Write tv.html** in ES5 (var, function, no arrow functions, no `?.` or `??`), from the TV pattern.
+5. **Write tv.html** in ES5 (var, function, no arrow functions, no `?.` or `??`), from the screen pattern.
 6. **Write phone.html** from the phone pattern: one main action, low in the middle, `../../shell/sdk/ui.css`
    round buttons, `user-scalable=no`.
 7. **Check:** `node lamba-check.mjs <app>` until it says "is ready to upload".
 8. **Test:** `node lamba-test.mjs <app>`, then open `lamba-test-shots/summary.md` and look at every screenshot
-   (the TV at both sizes, the owner's phone, the guest's phone, each setting). Fix and run again until summary.md
+   (the screen at both sizes, the owner's phone, the guest's phone, each setting). Fix and run again until summary.md
    says nothing to fix and the screenshots look right: big type readable from the sofa, nothing cut off, nothing
    crowded, the main button where the thumb rests. Then go through the design checklist in `references/review.md`
    and fix what fails.
@@ -48,6 +48,6 @@ the test said, and what the developer still has to do (a key, submitting).
 
 ## Files here
 
-- [references/patterns.md](references/patterns.md): the TV page, the phone page, guests and seats, settings,
-  saved data, sound, the remote's OK, with code to copy
+- [references/patterns.md](references/patterns.md): the screen page, the phone page, guests and seats, settings,
+  saved data, sound, motion and camera, the remote's OK, with code to copy
 - [references/review.md](references/review.md): the review checklist

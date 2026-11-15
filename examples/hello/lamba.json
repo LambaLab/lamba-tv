@@ -4,7 +4,7 @@
  "id": "hello",
  "name": "Hello",
  "sub": "The smallest SDK app",
- "about": "Guests wave from their phones and the TV waves back",
+ "about": "Guests wave from their phones and the screen waves back",
  "icon": "icon.svg",
  "tint": "#2a6f8f",
  "screens": {
@@ -109,7 +109,7 @@
  "clips": [
   [
    "hello-tv",
-   "What the TV shows"
+   "What the screen shows"
   ],
   [
    "hello-phone",

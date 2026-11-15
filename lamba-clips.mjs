@@ -183,7 +183,7 @@ async function record(dir, base, browser, tmp) {
   await p.goto(base + "/devs/simulator/" + (guestsN ? "?guests=" + guestsN : ""));
   await p.waitForSelector("#zipBtn", { timeout: 15000 });
   await p.setInputFiles("#zipInput", { name: id + ".zip", mimeType: "application/zip", buffer: zipOf(dir, id + "/") });
-  if (!await sealed(p, "tv", "screen", 15000)) throw new Error("the TV page never said hello: run node lamba-test.mjs " + basename(dir) + " and fix what it says first");
+  if (!await sealed(p, "tv", "screen", 15000)) throw new Error("the screen page never said hello: run node lamba-test.mjs " + basename(dir) + " and fix what it says first");
   const rigs = guestsN ? Array.from({ length: guestsN }, (x, i) => "g" + (i + 1)) : ["owner"], phones = {};
   for (const r of rigs) phones[r] = await sealed(p, r, r === "owner" ? "controller" : "guest", 10000);
   if (guestsN) phones.owner = await sealed(p, "owner", "controller", 4000);
@@ -195,7 +195,7 @@ async function record(dir, base, browser, tmp) {
   // the TV and a phone, then the same phone big
   for (const kind of ["play", "phone"]) {
     const tv = await box(p, "#tvScreen"), ph = await box(p, glass(main));
-    if (!tv || !ph) throw new Error("the simulator's TV or phone is not on screen");
+    if (!tv || !ph) throw new Error("the simulator's screen or phone is not on screen");
     const from = await cam.start(); await play(phones, main, steps, SECONDS * 1000 + 500);
     windows.push({ kind, from, to: Date.now() / 1000, frames: await cam.stop(), tv, ph });
   }
@@ -215,7 +215,7 @@ async function record(dir, base, browser, tmp) {
       for (let i = 1; Date.now() < end && n; i++) {
         await host.evaluate(i => { const b = document.querySelectorAll(".ctl-strip button")[i]; if (b) { b.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); b.click(); } }, i % n).catch(() => {});
         await wait(700);
-        await host.evaluate(() => { const s = [...document.querySelectorAll("button")].find(b => /Send to TV/i.test(b.textContent) && b.offsetWidth > 0 && !b.disabled); if (s) s.click(); }).catch(() => {});
+        await host.evaluate(() => { const s = [...document.querySelectorAll("button")].find(b => /^Send to /i.test(b.textContent) && b.offsetWidth > 0 && !b.disabled); if (s) s.click(); }).catch(() => {});
         if (guestsN && !steps && phones[main]) await tapRandom(phones[main]);
         await wait(Math.min(1500, Math.max(0, end - Date.now())));
       }
@@ -260,7 +260,7 @@ async function poster(browser, mp4, out) {
   await pg.close(); unlinkSync(png);
   writeFileSync(out, Buffer.from(b64, "base64"));
 }
-const CAPTION = { play: "On the TV, played from a phone", phone: "On a phone", settings: "Settings, live on the TV" };
+const CAPTION = { play: "On the screen, played from a phone", phone: "On a phone", settings: "Settings, live on the screen" };
 
 // lamba.json's "clips", changed in place (the rest of the file as it was)
 function listClips(dir, clips) {
