@@ -34,6 +34,13 @@ How to build it
 That's all. Your agent clones this repo, reads `AGENTS.md` and the `lamba-tv-app` skill, builds the app, checks and
 tests its own work, and looks at the screenshots.
 
+## Codex in the cloud (or any agent that works from your own repo)
+
+1. Click **Use this template** at the top of this page, then **Create a new repository**: you get your own copy of the kit.
+2. In Codex, connect that new repository (not LambaLab/lamba-tv: you cannot push to it), and turn on internet access for
+   the environment if you want it to check and upload for you.
+3. Paste the prompt above as the task.
+
 ## Let your agent check and upload for you
 
 Sign in at https://lamba.tv/devs/keys and make a key, then:
