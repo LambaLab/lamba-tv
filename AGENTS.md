@@ -5,6 +5,8 @@ joining from their phones. Children use it. Follow these instructions exactly. T
 
 At the start of every session, and whenever a tool says a newer kit exists, run `node lamba-update.mjs` first. Never tell the developer something the current kit doesn't say.
 
+The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). The kit has no copy of them.
+
 **One app, one function.** Lamba TV apps are small apps that do one thing well: a quiz, a countdown, a drawing game.
 Build the one thing the developer asked for. No menus of games, no extra features, no settings screens of your own.
 
@@ -51,8 +53,8 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
    repeat them, never ask for a name yourself. Ask for names only if the app shows them (`"askName": true` in lamba.json, then read `Lamba.me().name`). Onboarding for Players, if any, is short and realistic: real
    pictures of the app or the real screen, with plain words; never gimmick illustrations, clip art or emoji (`lamba check`
    refuses emoji in the pages and lamba.json, and an app Players join with no view `guest`).
-   The remote is full screen and visual: pictures for choices (mark the groups Players may change with "players": true in lamba.json, and Lamba shows them the Host's picture tiles), and a visible sound control when the app has sound (add "forPlayers": ["sound"] to lamba.json for Lamba's own Sound tile; also "brightness", "frame", "effects" (cracks, lines, flies: never a scare) and "schedule" (Players only see it, the Host alone changes it), each off until the Host switches it on). For background music, never ship your own files: add "music": true to lamba.json (and "music" to forPlayers to share it) and Lamba plays its own library on the screen, with a Music tile for the Host. No decorative status text or stray icons at the top, no hold to act gestures, and options big enough for a thumb (44 px or more). Details: docs UI (A Player's remote) and lamba.json (Settings for Players).
-5. **Phone pages use Lamba's controls.** Build settings in lamba.json, never in phone.html (docs/sdk/UI.md, "Phone pages: use Lamba's controls"). No Send, Undo or Reset of your own, no sound, mute or music control (`forPlayers`), no − and + steppers, sliders or number boxes (a number setting: Lamba shows its dial), no title, profile or status at the top, no tabs, no grid of cards. `lamba check` refuses the first three and warns about the rest.
+   The remote is full screen and visual: pictures for choices (mark the groups Players may change with "players": true in lamba.json, and Lamba shows them the Host's picture tiles), and a visible sound control when the app has sound (add "forPlayers": ["sound"] to lamba.json for Lamba's own Sound tile; also "brightness", "frame", "effects" (cracks, lines, flies: never a scare) and "schedule" (Players only see it, the Host alone changes it), each off until the Host switches it on). For background music, never ship your own files: add "music": true to lamba.json (and "music" to forPlayers to share it) and Lamba plays its own library on the screen, with a Music tile for the Host. No decorative status text or stray icons at the top, no hidden hold to act gestures (a visible key held on purpose is fine: `LambaUI.hold`, with beats the screen lets expire; the example `fireside`), and options big enough for a thumb (44 px or more). Many people sending a little (an ambient app: fan a fire, cheer) are an audience, `"visitors"` in lamba.json, not 50 game seats: SDK reference, "Game seats or an audience", for the real limits. Details: docs UI (A Player's remote) and lamba.json (Settings for Players).
+5. **Phone pages use Lamba's controls.** Build settings in lamba.json, never in phone.html (https://lamba.tv/devs/docs/ui/#phone-pages-use-lamba-s-controls). No Send, Undo or Reset of your own, no sound, mute or music control (`forPlayers`), no − and + steppers, sliders or number boxes (a number setting: Lamba shows its dial), no title, profile or status at the top, no tabs, no grid of cards. `lamba check` refuses the first three and warns about the rest.
    Phone pages never zoom: the viewport meta says `user-scalable=no`.
 6. **Every view has its own address.** The host keeps the settings drawer's place in the address (`&g=&p=`): put
    settings in lamba.json groups, not in screens of your own. Keep the phone page one screen per view; what it
@@ -94,11 +96,27 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
     colour"): never a home-made slider, colour grid, picker or crop screen (`lamba check` refuses sliders and colour grids, the reviewer refuses the rest). Paths made on the phone
     (a font's letters, a photo's outlines) go in a `strokes` field, a palette in a `colours` field; the photo itself never leaves
     the phone. A photo that is a picture in your app (a frame on a wall, a poster) is a `photo` field, `{ "type": "photo", "aspect": "4:3" }`
-    in a group part (`"players": true` for Players too): Lamba shows the picker and the crop; your app just draws the URL in `Lamba.settings`
+    in a group part (`"players": true` for Players too), or several side by side in one part (`{ "label": "Photos", "photos": [{ "setting": "left", "label": "Left" }, ...] }`): Lamba shows the picker and the crop; your app just draws the URL in `Lamba.settings`
     and an empty frame while it is `""`. Never build your own `<input type=file accept=image>` for it. A picture with parts people may place declares a `transforms` field and tells the host where the parts are with
     `Lamba.parts` (the phone's copy of the screen then gets selection handles to move, size and turn them); `"multiline": true`
     keeps the line breaks that your own app part sends with `LambaUI.textarea`; the drawer's own field is one line; an app that starts without a frame says `"frame": "none"` in lamba.json. Work that takes
     time (a photo's outlines, a font's letters) shows a loader and runs in small steps, never one long pause.
+
+## You cannot change the platform
+
+You build one app folder. You never write, suggest or ask for a patch to the SDK, the shell, Lamba's hosts, the simulator,
+`lamba-check.mjs`, `shell/sdk` or any file Lamba owns, and you never tell the developer that "an SDK patch" must be
+integrated. Lamba's files are read only for you. When the kit lacks something:
+
+1. Check again first: `lamba_docs` and `lamba_rules` (the manifest, the photo slots, the group parts, the sheet) cover more than they seem to.
+   Several slots of one kind usually live in ONE group as parts (a pill in the drawer), not as several groups.
+2. If it really is missing, tell the developer plainly, in one short message: what is missing, what you did instead (the
+   closest supported way, still inside the rules), and what is lost by it.
+3. Offer to file it with Lamba, in three short fields: what the app needs, what the kit does today, how you work around it.
+   When the developer says yes, call `lamba_request` (or, without the Lamba connection, send them to the Request a feature
+   page at lamba.tv/devs/requests/new). Lamba's team is emailed, and the answer shows on that page. Never ask the developer to
+   send it to a contact, and never open an issue or pull request on Lamba's repository for it.
+4. Carry on with the supported way. Never work around a rule with a hack of your own.
 
 ## Ask first
 
@@ -142,8 +160,11 @@ Work in this order and do not skip a step:
    `name`, `sub`, `about`, `category`, `age`, `players`, `icon`, `card`, and `page.facts` and `page.about`.
 3. **Check:** `node lamba-check.mjs <app>`. Fix every line it prints. It is the check Lamba's server runs.
 4. **Test:** `node lamba-test.mjs <app>`. It runs the app in the real simulator (the screen at 1920 x 1080 and
-   960 x 540, the Host's phone with its tiles, a Player's remote) and ends with a three-column summary (what was tested, the result, what to fix) in `lamba-test-shots/summary.md`, with screenshots.
-   To drive the simulator from your own test: `window.LambaSim` (docs: Testing your app).
+   960 x 540, the Host's phone with its tiles, a Player's remote) and ends with a three-column summary (what was tested, the result, what to fix) in `lamba-test-shots/summary.md`, with screenshots. Its table "What was and was not exercised" says, per setting, which values reached the screen page (delivered) apart from which changed its picture (rendered): tell the developer what was not exercised. A "Kit defects (not your app)" section is never yours to fix: never patch the kit for it.
+   To drive the simulator from your own test: `window.LambaSim` (docs: Testing your app), never the page's elements: `controlsReady`,
+   `open(group, part)`, `sheet(open)`, `phone(which)`, `screen.size(w, h)`. For real phone sizes (WebKit, iPhone upright and sideways,
+   the sheet up and down, 44 px targets, equal keys, nothing moving under a finger): copy the skill's `templates/phone-viewports.test.mjs`
+   next to `lamba-test.mjs` and run `node phone-viewports.test.mjs <app>`.
    First time: `npm install` then `npx playwright install chromium`.
    To play it: the preview link ("Play it" below). On a machine with a browser, `node lamba-test.mjs <app> --serve` also works.
 5. **Look** at the screenshots yourself and read summary.md. Fix what is marked FIX, page errors, refusals, and
@@ -169,6 +190,8 @@ Work in this order and do not skip a step:
    and card (render them), look at every poster, and say what you checked.
    **Films:** a looping scene is made with `node lamba-film.mjs <video> --name <name> --out <app>/films` (the 1080 film, its
    720 and 360 copies, a still): https://lamba.tv/devs/docs/films/. `node lamba-check.mjs` says exactly what is missing.
+   Switch recordings with `film.load(url)` (each starts fresh at the best quality). Art that needs HD sets
+   `{ minQuality: 720 }`: never the 360 copy, the still picture instead. Never patch shell/film.js or the SDK.
 8. **Upload** only when check, test and the checklist pass: `node lamba-check.mjs <app> --upload` (needs the connection: "Connect Lamba" below), or the
    `lamba_upload` tool. Read the result and `lamba_status`.
 9. **Submit from the answers.** When the developer wants to submit: `lamba_listing`. Fill its gaps from the first
@@ -183,7 +206,7 @@ After every build or change that passes the check, end your message with a click
 - **Connected:** the link is the preview link: `lamba_preview`, or `node lamba-check.mjs <app> --preview`. Tap it on a phone
   (Safari or Chrome): the screen is on top, and the host's phone and a player's phone switch with tabs. Anyone with the
   link can play, so the developer can send it to a friend. It lasts 15 days, the next preview of the app replaces it, and
-  it is not a version: nothing is submitted. "Try on my screen" is on that page for the developer.
+  it is not a version: nothing is submitted. "Test this version" is on that page for the developer.
   Each preview is also saved as a Draft on lamba.tv/devs (under Your apps, the newest of each app, 15 days), so the developer can
   open it from there without hunting for the link. Tell them so once: "It is in your Drafts on lamba.tv/devs."
 - **Not connected yet:** say once, in plain words: "To get a link you can open on your phone, connect Lamba (one tap)."
@@ -254,6 +277,7 @@ Once connected (docs: https://lamba.tv/devs/docs/ai/), it acts as the developer,
 | `lamba_upload` | upload a version (small apps; big ones: `node lamba-check.mjs <app> --upload`) |
 | `lamba_status` | see versions, their states, what to fix and the reviewer's notes |
 | `lamba_apps` | list the developer's apps |
+| `lamba_request` | ask Lamba for what the kit lacks: need, what the kit does today, workaround (after the developer says yes) |
 | `lamba_try` | put a version that passed the check on the developer's own screens (7 days); with no `ver` it lists their screens by name |
 | `lamba_download` | get an app of theirs back into `./<app>/` to update it (big apps: `node lamba-check.mjs --download <app>`) |
 | `lamba_listing` | what players will see, and the questions to ask the developer before submitting |

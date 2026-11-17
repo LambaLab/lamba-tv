@@ -6285,6 +6285,21 @@ function checkSettings(m, dir, say, str, file) {
       if (!p || typeof p !== "object") { say(v + " must be an object"); return; }
       str(p.label, 24, v + ".label");
       if (p.app !== undefined) { if (typeof p.app !== "string" || !GROUP.test(p.app)) say(v + ".app must be the part's key (small letters)"); else if (pk.has(p.app)) say(v + ": " + p.app + " twice"); pk.add(p.app); if (!(m.screens && m.screens.phone)) say(v + ": an app part needs screens.phone"); return; }
+      // { "label": "Photos", "photos": [{ "setting": "left", "label": "Left" }, { "setting": "right", "label": "Right" }] }: 2 to 4 photo
+      // slots side by side in one part (shell/sdk/photo-host.js slots), each with Lamba's picker, crop, replace and remove
+      if (p.photos !== undefined) {
+        if (p.setting !== undefined) say(v + ": a part has photos or a setting, not both");
+        if (!Array.isArray(p.photos) || p.photos.length < 2 || p.photos.length > 4) { say(v + ".photos: 2 to 4 photo slots, shown side by side ({ \"setting\", \"label\" } each)"); return; }
+        p.photos.forEach((x, n) => {
+          const u = v + ".photos[" + n + "]";
+          if (!x || typeof x !== "object" || Array.isArray(x)) { say(u + " must be { \"setting\", \"label\" }"); return; }
+          str(x.label, 12, u + ".label");
+          if (!keys.includes(x.setting)) { say(u + ".setting must be one of settings.fields"); return; }
+          const xf = S.fields[x.setting]; if (!xf || typeof xf !== "object" || xf.type !== "photo") say(u + ".setting must be a photo setting (type \"photo\"): " + x.setting + " is " + (xf && typeof xf === "object" && xf.type ? "a " + xf.type : "not one"));
+          if (pk.has(x.setting)) say(u + ": " + x.setting + " twice"); pk.add(x.setting); used.add(x.setting);
+        });
+        return;
+      }
       if (!keys.includes(p.setting)) { say(v + ".setting must be one of settings.fields"); return; }
       if (pk.has(p.setting)) say(v + ": " + p.setting + " twice"); pk.add(p.setting); used.add(p.setting);
       if (g.players === true && S.fields[p.setting] && ["strokes", "transforms"].includes(S.fields[p.setting].type)) say(v + ": a " + S.fields[p.setting].type + " setting is drawn on the Host's phone only, so it cannot be in a group for Players");
@@ -6295,6 +6310,9 @@ function checkSettings(m, dir, say, str, file) {
   keys.forEach(k => { if (!used.has(k) && !(S.fields[k] && S.fields[k].hidden)) say("settings.fields." + k + " is in no group (or mark it hidden: true)"); });
 }
 
+// the settings one part of a group holds: its setting, or each of its photo slots ({ photos: [{ setting, label }] }), else none (an app part)
+const partKeys = p => !p || typeof p !== "object" ? [] : Array.isArray(p.photos) ? p.photos.map(x => x && x.setting).filter(k => typeof k === "string") : typeof p.setting === "string" ? [p.setting] : [];
+
 // what a host needs from one manifest (the registry entry): everything except what only the developer needs
 // a what's new note as the server keeps it: no HTML, no dashes, one line, 300 characters at most
 const cleanNew = t => String(t == null ? "" : t).replace(/<[^>]*>/g, " ").replace(/[<>]/g, "").replace(/\s*[\u2013\u2014]\s*/g, ", ").replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
@@ -6304,14 +6322,14 @@ function registryEntry(m) {
   e.askName = m.askName === true;
   e.clips = m.clips || []; e.listed = m.listed !== false; e.stagingOnly = m.stagingOnly === true; e.notInDemo = m.notInDemo !== false; e.liveCard = m.liveCard === true;
   // the settings a Player may change (the parts of the groups marked "players": true), for the room to check a Player's change
-  e.playerKeys = ((m.settings || {}).groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).map(x => x && x.setting).filter(Boolean)).filter((k, i, a) => a.indexOf(k) === i);
+  e.playerKeys = ((m.settings || {}).groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).flatMap(partKeys)).filter((k, i, a) => a.indexOf(k) === i);
   e.live = Object.keys((m.settings || {}).fields || {}).filter(k => m.settings.fields[k].apply === "now");   // settings that go to the screen at once
   return e;
 }
 
 // What to do about a problem the check found, in a few words ("" when its own words say it): the MCP tools' fixes
 // (worker/devmcp.js) and the simulator's "Ask your AI to fix this" prompts (devs/simulator/sim.js)
-const fixHint = p => /phone design: .*(Send|Undo)/.test(p) ? "Delete your Send, Undo and Reset buttons: Lamba's bar sends and undoes every setting change. Build settings in lamba.json (docs/sdk/UI.md)."
+const fixHint = p => /phone design: .*(Send|Undo)/.test(p) ? "Delete your Send, Undo and Reset buttons: Lamba's bar sends and undoes every setting change. Build settings in lamba.json (https://lamba.tv/devs/docs/ui/)."
   : /phone design: .*(Sound and Music|sound \/ music)/.test(p) ? "Delete your own sound, mute, volume or music control and add \"forPlayers\": [\"sound\", \"music\"] to lamba.json: Lamba shows its tiles."
   : /phone design: .*(dial|number setting)/.test(p) || /home-made slider/.test(p) ? "Delete the stepper, range or number input and put the value in lamba.json as a number setting (type \"number\", min, max, step): Lamba shows its dial."
   : /(part|group) label .* is long/.test(p) ? "Shorten the label to one or two words (about 12 letters): \"Photo 1\", not \"First picture\". Lamba shows it at its own size, so a long one makes the row swipe."
@@ -6339,7 +6357,7 @@ const fixHint = p => /phone design: .*(Send|Undo)/.test(p) ? "Delete your Send, 
   : /hidden file|kind of file|file names may|leaves the app|backslash|top of a disk/.test(p) ? "Rename or remove that file."
   : "";
 
-return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, SHELVES, FOR_PLAYERS, HOST_PARTS, HOST_GROUPS, inside, checkRules, ACTIONS_MAX, cleanNew, registryEntry, fixHint };
+return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, SHELVES, FOR_PLAYERS, HOST_PARTS, HOST_GROUPS, inside, checkRules, ACTIONS_MAX, partKeys, cleanNew, registryEntry, fixHint };
 })();
 
 // ---- tools/sdk_check.mjs ----
@@ -6375,7 +6393,7 @@ const M_files = (() => {
 //      number inputs; warnings for a heading or profile at the top, tabs, a grid of choice cards
 //   8. the phone's controls are the shared ones: no <input type=range> or type=color of its own, no grid of colour dots or
 //      swatches (a colours setting with swatches in lamba.json gets the drawer's colour strip and picker), no LambaUI.colours
-const { inside } = M_rules;
+const { inside, partKeys } = M_rules;
 
 const TEXT = [".html", ".js", ".css", ".json", ".svg", ".md", ".txt"];
 const ext = p => { const m = String(p).match(/\.[A-Za-z0-9]+$/); return m ? m[0].toLowerCase() : ""; };
@@ -6483,12 +6501,17 @@ function playerRemote(m, say, warnings, text, scriptsOf, where, has) {
   const ask = /<input\b[^>]*\b(placeholder|aria-label|name|id|autocomplete)\s*=\s*["'][^"']*\b(name|nickname|given-name)\b/i.test(html) || /\.(placeholder|autocomplete)\s*=\s*["'][^"']*\b(name|nickname|given-name)\b/i.test(code);
   // the remote must show what it can do: no hold-to-act with no visible control, and sound has a control Players can see
   const seen = html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]*>/g, " ") + " " + [...code.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g)].map(x => x[2]).join(" ");
-  const hold = seen.match(HOLD_TO);
+  // a hold that IS a visible control is fine: a button (or role=button) of the remote that says hold or press, or that the code presses
+  // and releases (pointerdown with pointerup or pointercancel, LambaUI.hold): a press and hold key, not an invisible gesture
+  const keys = pageControls(html).filter(c => c.where !== "host" && !c.hidden);
+  const holdKey = keys.some(c => /\b(hold|holding|press)\b/.test(c.label || "")) || (keys.length > 0 && (/LambaUI\s*\.\s*hold\s*\(/.test(code)
+    || (/["']pointerdown["']/.test(code) && /["']pointer(up|cancel)["']/.test(code) && /setPointerCapture\s*\(/.test(code))));
+  const hold = holdKey ? null : seen.match(HOLD_TO);
   if (hold) warnings.push(p + ": the remote says \"" + hold[0].trim() + "\": a hold to act, with no visible control. Put it on a button or a tile Players can see.");
   const S = m.settings || {}, F = S.fields || {}, SOUND = /sound|volume|music|mute|song|track/i;
   const hasSound = (m.permissions || []).includes("sound") || Object.keys(F).some(k => SOUND.test(k));
   if (hasSound) {
-    const forPlayers = new Set((S.groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).map(x => x && x.setting).filter(Boolean)));
+    const forPlayers = new Set((S.groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).flatMap(partKeys)));
     const tile = [...forPlayers].some(k => SOUND.test(k) || SOUND.test(String((F[k] || {}).name || "")));
     const button = pageControls(html).some(c => c.where !== "host" && !c.hidden && SOUNDISH.test(norm(c.label || "")));
     const built = (m.forPlayers || []).includes("sound");   // Lamba's own Sound tile (the screen's volume and mute), when the Host allows it
@@ -6574,6 +6597,10 @@ function phoneDesign(src, f, error, warn) {
   }
   if (head || hdr) W("a heading or title at the top (" + (head ? "<" + head.tag + ">" : "<header>") + "). Nothing goes at the top: Lamba's own bar names the app and the Player.");
   if (corner) W("a profile or name corner (class \"" + corner.cls.find(c => !/^l-/.test(c)) + "\"). Lamba shows who you are; leave it out.");
+  const ownHead = els.find(e => !isL(e) && (e.tag === "button" || e.tag === "a" || e.role === "button") && /^(done|back|leave|exit|easier to see|invite( a friend)?)$/i.test((e.label || "").trim()));
+  const ownDot = els.find(e => !isL(e) && e.cls.some(c => /^(conn(ection)?-?(dot|light|lamp|status)|status-?dot|online-?dot|live-?dot)$/.test(c)));
+  if (ownHead) W("a \"" + ownHead.label.trim().slice(0, 30) + "\" button of its own. Lamba draws the header, the same for the Host and every Player: the app's name with a small chevron (the details slide up from it: Share, Leave) and the connection dot at the top right. Never your own Back, Done, Leave, eye or Invite at the top.");
+  if (ownDot) W("a connection dot of its own (class \"" + ownDot.cls.find(c => !/^l-/.test(c)) + "\"). Lamba draws it at the top right of the phone; leave it out.");
   if (status) W("a status line (\"" + status.label.slice(0, 40) + "\"). Lamba shows status; leave it out.");
   const tabby = els.some(e => e.role === "tablist" || e.role === "tab" || e.cls.some(c => /^(tabs?|tab-?(bar|row|list|strip)|tabbar)$/.test(c)));
   let run = false;   // a row of 3 or more buttons side by side, one of them marked as the current one: tabs
@@ -6614,6 +6641,12 @@ function groupPictures(m, say, warnings) {
     say("settings.groups: give the " + name + " group an icon (\"icon\": {\"icon\": \"pictures/" + String(g.key || "group") + ".svg\"}) or a picture for each choice: the host shows it on its tile.");
   });
 }
+// photo slots: several slots are the parts of ONE group (one tile "Photos", a pill "Left" "Right"), never one group each (warning)
+function photoGroups(m, warnings) {
+  const S = m.settings; if (!S || !Array.isArray(S.groups) || !S.fields || typeof S.fields !== "object") return;
+  const only = S.groups.filter(g => g && g.host === undefined && Array.isArray(g.parts) && g.parts.length && g.parts.every(p => p && partKeys(p).length && partKeys(p).every(k => S.fields[k] && S.fields[k].type === "photo")));
+  if (only.length > 1) warnings.push("settings.groups: " + only.map(g => "\"" + (g.label || g.key) + "\"").join(" and ") + " each hold only photo slots. Put every photo slot in ONE group (one \"Photos\" tile): one part with the slots side by side ({ \"label\": \"Photos\", \"photos\": [{ \"setting\": \"left\", \"label\": \"Left\" }, { \"setting\": \"right\", \"label\": \"Right\" }] }), or one part per slot (a pill to choose the slot), each with Lamba's crop.");
+}
 // the pill of parts and the tiles show a label at its own size and the row swipes: one or two short words (warning)
 function shortLabels(m, warnings) {
   const S = m.settings; if (!S || !Array.isArray(S.groups)) return;
@@ -6652,17 +6685,31 @@ function tvWord(m, say, warnings, pages, text, scriptsOf) {
 }
 
 // ---- rule 13: films ----
-// a film's files: name.film is required; name-720.film and name-360.film are the loader's quiet fallbacks (shell/film.js)
+// a film's files: name.film is required; name-720.film and name-360.film are the loader's quiet fallbacks (shell/film.js).
+// Only a whole name in quotes is a film the page loads ("films/sea.film"): a piece of one, as in url.replace(".film", "-720.film"),
+// "films/" + name + ".film" or `films/${name}.film`, is not checked (its name is only known when the page runs)
+const FILM_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.film$/;
+function filmRefs(code) {
+  const out = [];
+  for (const r of code.matchAll(/(["'`])([^"'`\s]*\.film)(?:[?#][^"'`]*)?\1/g)) {
+    const ref = r[2], name = ref.slice(ref.lastIndexOf("/") + 1);
+    if (!FILM_NAME.test(name) || ref.indexOf("${") > -1) continue;   // ".film", "-720.film": a piece of a name
+    const before = code.slice(Math.max(0, r.index - 40), r.index).replace(/\s+$/, ""), after = code.slice(r.index + r[0].length, r.index + r[0].length + 40).replace(/^\s+/, "");
+    if (/\+$/.test(before) || /^\+/.test(after)) continue;   // "films/" + name + "-720.film": joined to other pieces
+    out.push(ref);
+  }
+  return out;
+}
 function filmRule(m, has, text, say, warnings, where) {
   const seen = new Set();
   for (const f of [...has].filter(f => [".html", ".js"].includes(ext(f)))) {
     const code = (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
-    for (const r of code.matchAll(/["'`]([^"'`\s]*\.film)(?:[?#][^"'`]*)?["'`]/g)) {
-      const ref = r[1]; if (/^([a-z]+:|\/)/i.test(ref)) continue;
+    for (const ref of filmRefs(code)) {
+      if (/^([a-z]+:|\/)/i.test(ref)) continue;
       const p = where(/\.html$/i.test(f) ? f : "index.html", ref); if (!p || seen.has(p)) continue; seen.add(p);
       const dir = p.indexOf("/") > -1 ? p.slice(0, p.lastIndexOf("/")) : ".", nm = p.slice(p.lastIndexOf("/") + 1).replace(/(-720|-360)?\.film$/, "");
       const cmd = "node lamba-film.mjs <your video> --name " + nm + " --out " + (m.id || "<app>") + "/" + dir;
-      if (!has.has(p)) { say(f + ": loads " + p + ", but that file is not in the app. Fix: make it with `" + cmd + "` (it writes " + p.replace(/(-720|-360)?\.film$/, ".film") + " and its smaller copies), or correct the name."); continue; }
+      if (!has.has(p)) { say(f + ": loads the film \"" + ref + "\", but " + p + " is not in the app's folder. Fix: make it with `" + cmd + "` (it writes " + p.replace(/(-720|-360)?\.film$/, ".film") + " and its smaller copies), or correct the name in " + f + "."); continue; }
       if (/-(720|360)\.film$/.test(p)) continue;
       const lack = ["-720", "-360"].filter(v => !has.has(p.replace(/\.film$/, v + ".film")));
       if (lack.length) warnings.push(p + ": has no " + lack.map(v => p.replace(/\.film$/, v + ".film")).join(" or ") + ". It still plays, but " + [lack.includes("-720") ? "a screen that cannot play 1080 smoothly drops to the still picture" : "", lack.includes("-360") ? "the Host's phone preview has no film" : ""].filter(Boolean).join(", and ") + ". Fix: `" + cmd + "` makes every size.");
@@ -6674,7 +6721,7 @@ function filmRule(m, has, text, say, warnings, where) {
 // A square mark with ONE clear subject in the middle 80%, simple at 48 px. What this can see in an SVG: it is not square; it is (or holds) a picture, a photo or a
 // screenshot, that fills the square (so its subject touches the edges and the rounded corners cut it); a circle or a shape that fills the square edge to edge
 // (a background shape is fine, the subject is not); a heavy file. A picture the size of the square is the usual case: "a raw crop of the screen".
-const ICON_SAY = " Make an icon of one clear subject centred in the middle 80% of a square, simple enough to read at 48 px (docs/sdk/ASSETS.md; node lamba-icon.mjs makes one from a picture).";
+const ICON_SAY = " Make an icon of one clear subject centred in the middle 80% of a square, simple enough to read at 48 px (https://lamba.tv/devs/docs/assets/#required-the-icon; node lamba-icon.mjs makes one from a picture).";
 function iconRule(m, has, text, warnings) {
   const f = m.icon; if (typeof f !== "string" || !has.has(f) || !/\.svg$/i.test(f)) return;
   const svg = text(f); if (typeof svg !== "string") return;
@@ -6788,6 +6835,7 @@ function checkFiles(o) {
   }
   // 11. every group of the drawer has a picture on its tile: an icon, or a picture for each choice (the host shows it)
   groupPictures(m, say, warnings);
+  photoGroups(m, warnings);
   shortLabels(m, warnings);
   // 12. "TV" is not what an app calls the screen: an error in the listing, a warning in the pages
   tvWord(m, say, warnings, pages, text, scriptsOf);
@@ -6838,7 +6886,7 @@ function snippetProblems(code, lang, declared) {
   return P;
 }
 
-return { pageControls, EMOJI, phoneDesign, checkFiles, snippetProblems };
+return { pageControls, EMOJI, phoneDesign, filmRefs, checkFiles, snippetProblems };
 })();
 
 // ---- worker/zip.js ----
@@ -6954,7 +7002,8 @@ const TYPES = {
   html: "text/html; charset=utf-8", js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", json: "application/json; charset=utf-8",
   txt: "text/plain; charset=utf-8", md: "text/plain; charset=utf-8", svg: "image/svg+xml", png: "image/png", webp: "image/webp", jpg: "image/jpeg",
   jpeg: "image/jpeg", gif: "image/gif", mp4: "video/mp4", woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
-  mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4", film: "application/octet-stream"
+  mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", m4a: "audio/mp4", film: "application/octet-stream",
+  jpgs: "application/octet-stream"   // a film's pictures for weak screens (name.seq.<k>.jpgs, made by lamba-film.mjs --seq)
 };
 // the starter kit's placeholder clips (kit/starter/my-app/clips, made by tools/sdk_kit_clips.py), by their SHA-256: a
 // version may not be listed with them. If that tool makes them again, put the new hashes here (shasum -a 256 ...)
@@ -6992,6 +7041,12 @@ async function checkUpload(bytes, o) {
   if (!list.some(f => f.path === "lamba.json")) {
     const top = list.length && list[0].path.split("/")[0];
     if (top && list.every(f => f.path.startsWith(top + "/"))) list = list.map(f => ({ path: f.path.slice(top.length + 1), bytes: f.bytes }));
+  }
+  // a kit's zip (starter.zip, an example: lamba-hello/ with the app in hello/ and the AI helpers .agents/, .claude/ beside it):
+  // the one folder that has a lamba.json is the app, the files around it are the workspace and are not uploaded
+  if (!list.some(f => f.path === "lamba.json")) {
+    const apps = [...new Set(list.filter(f => /^[^/]+\/lamba\.json$/.test(f.path)).map(f => f.path.split("/")[0]))];
+    if (apps.length === 1) list = list.filter(f => f.path.startsWith(apps[0] + "/")).map(f => ({ path: f.path.slice(apps[0].length + 1), bytes: f.bytes }));
   }
   const seen = new Set();
   for (const f of list) {

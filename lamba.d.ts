@@ -94,7 +94,9 @@ interface LambaMusicState {
   playing?: boolean;
 }
 
-interface LambaFilm { play(): void; pause(): void; stop(): void }
+interface LambaFilm { play(): void; pause(): void; stop(): void;
+  /** Another recording on the same canvas: it starts fresh at the best quality for the screen. fps and minQuality carry over unless given. */
+  load(url: string, opts?: Pick<LambaFilmOptions, "low" | "seq" | "films" | "fps" | "minQuality">): void }
 /** Lamba.film's options: the player's own and the film's, in one object (the SDK passes each to its place). */
 interface LambaFilmOptions {
   /** The player: fn() once the first picture is drawn. */
@@ -115,6 +117,8 @@ interface LambaFilmOptions {
   films?: string[];
   /** The film: its own frames a second (default 25). */
   fps?: number;
+  /** The film: the fewest lines a copy may have on a screen (720 or 1080). Copies under it (the 360 copy, the pictures) never show; below it the still picture (onfail). Default: none. */
+  minQuality?: 360 | 720 | 1080 | 1440 | 2160;
 }
 
 interface LambaQuestion { text: string; kind?: string; answer?: string; choices?: string[]; board?: unknown }
@@ -155,10 +159,12 @@ interface LambaFontPicker {
   get(): { family: string; weight: number; italic: boolean };
 }
 
-/** The shared controls (shell/sdk/ui.js). Only fontPicker is typed here; the rest are in docs/sdk/UI.md. */
+/** The shared controls (shell/sdk/ui.js). fontPicker and hold are typed here; the rest are in docs/sdk/UI.md. */
 declare var LambaUI: {
   /** A Google font picker: search, kinds (Popular, Script, Handwriting, Display, Sans, Serif, Mono), tiles drawn in each font, then its weights and italic. o.extra: your own list of choices shown first as { id, name, family?, weight?, italic?, draw?(canvas) }. */
   fontPicker(o: { value?: { family?: string; weight?: number; italic?: boolean; id?: string }; sample?: string; extra?: { title?: string; items: object[] }; onChange(v: { family: string; weight: number; italic: boolean; id?: string; kind: string }): void }): LambaFontPicker;
+  /** A press and hold key (shell/sdk/ui.js): start on the press (finger, mouse, Enter or Space; the finger is captured), beat(msHeld) every `every` ms (1500) while held, end(why) once: "up", "cancel", "away" (page hidden or left), "max" (after max ms, 20000) or "off". */
+  hold(el: Element, o: { start?(): void; beat?(msHeld: number): void; end?(why: "up" | "cancel" | "away" | "max" | "off"): void; every?: number; max?: number }): { off(): void; release(): void; held(): boolean };
   [k: string]: any;
 };
 

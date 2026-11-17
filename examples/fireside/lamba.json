@@ -1,0 +1,170 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "fireside",
+ "name": "Fireside",
+ "sub": "A fire the whole room can fan",
+ "about": "A fire that fills the screen. Hold Fan on your phone and it grows",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": [
+  "#ff8a2a",
+  "#2a1206"
+ ],
+ "page": {
+  "facts": [
+   [
+    "Fan it",
+    "Hold",
+    "on your phone, it grows"
+   ],
+   [
+    "Room",
+    "8 + 100",
+    "8 Players, 100 more people"
+   ],
+   [
+    "Mantel",
+    "2 photos",
+    "left and right"
+   ]
+  ],
+  "about": [
+   {
+    "h": "A fire for the room",
+    "p": "The fire fills the screen. Everyone in the room can hold Fan on their phone, and the fire grows while they hold. The Host can add a log at any time."
+   }
+  ]
+ },
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 0,
+  "max": 8
+ },
+ "guests": true,
+ "visitors": {
+  "max": 100,
+  "perMinute": 40
+ },
+ "age": "all",
+ "permissions": [],
+ "outside": [],
+ "frame": "none",
+ "actions": [
+  {
+   "key": "log",
+   "label": "Add a log",
+   "icon": "pictures/log.svg"
+  }
+ ],
+ "settings": {
+  "fields": {
+   "flame": {
+    "type": "choice",
+    "default": "logs",
+    "choices": [
+     {
+      "id": "logs",
+      "name": "Logs",
+      "sub": "Warm and lively",
+      "picture": "live"
+     },
+     {
+      "id": "embers",
+      "name": "Embers",
+      "sub": "Low and calm",
+      "picture": "live"
+     }
+    ]
+   },
+   "left": {
+    "type": "photo",
+    "aspect": "3:4"
+   },
+   "right": {
+    "type": "photo",
+    "aspect": "3:4"
+   },
+   "show": {
+    "type": "switch",
+    "default": true,
+    "on": {
+     "name": "Show photos",
+     "sub": "On the mantel",
+     "picture": {
+      "text": "On"
+     }
+    },
+    "off": {
+     "name": "Hide photos",
+     "sub": "Only the fire",
+     "picture": {
+      "text": "Off"
+     }
+    }
+   }
+  },
+  "groups": [
+   {
+    "key": "flame",
+    "label": "Fire",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "flame",
+      "label": "Fire"
+     }
+    ]
+   },
+   {
+    "key": "mantel",
+    "label": "Mantel",
+    "icon": {
+     "icon": "pictures/photos.svg"
+    },
+    "parts": [
+     {
+      "label": "Photos",
+      "photos": [
+       {
+        "setting": "left",
+        "label": "Left"
+       },
+       {
+        "setting": "right",
+        "label": "Right"
+       }
+      ]
+     },
+     {
+      "setting": "show",
+      "label": "Show"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ },
+ "category": "art",
+ "clips": [
+  [
+   "fireside-tv",
+   "What the screen shows"
+  ],
+  [
+   "fireside-phone",
+   "What a phone does"
+  ]
+ ]
+}

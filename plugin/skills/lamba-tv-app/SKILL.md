@@ -9,6 +9,8 @@ A Lamba app is one folder: `lamba.json`, `tv.html` (the big screen, the authorit
 controls and each Player's phone), `icon.svg`, `card.svg`, `clips/`. The rules in AGENTS.md are hard rules: the
 check and a person at Lamba refuse an app that breaks one. Read them first if you have not.
 
+The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). The kit has no copy of them.
+
 ## Steps
 
 0. **Update the kit.** At the start of every session, and whenever a tool says a newer kit exists, run `node lamba-update.mjs` first (one line, offline is fine). Never tell the developer something the current kit doesn't say.
@@ -28,7 +30,7 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
    it uses), `outside` (empty unless needed), settings `fields` and `groups` with `{ "host": "frame" }`,
    `{ "host": "mat" }` and `{ "host": "brightness" }` each once.
 5. **Write tv.html** in ES5 (var, function, no arrow functions, no `?.` or `??`), from the screen pattern.
-6. **Write phone.html** (Build settings in lamba.json, never in phone.html: docs/sdk/UI.md, "Phone pages: use Lamba's controls") from the remote pattern (references/patterns.md): for an app Players join, the Player's remote in
+6. **Write phone.html** (Build settings in lamba.json, never in phone.html: https://lamba.tv/devs/docs/ui/#phone-pages-use-lamba-s-controls) from the remote pattern (references/patterns.md): for an app Players join, the Player's remote in
    view `guest`, the whole phone, a full screen, realistic remote made for this app (`.l-remote`, `.l-well`, `.l-key.l-big`,
    `LambaUI.press`), one main action, low, never scrolling, `user-scalable=no`. No name step on your page. Ask for names only if the app shows them (`"askName": true` in lamba.json; Lamba's join asks once and you read
    `Lamba.me()`), no clip art, no emoji. The Player's remote is full screen and visual: pictures for choices (mark the groups Players may change with "players": true in lamba.json, and Lamba shows them the Host's picture tiles), and a visible sound control when the app has sound (add "forPlayers": ["sound"] to lamba.json for Lamba's own Sound tile; also "brightness", "frame", "effects" (cracks, lines, flies: never a scare) and "schedule" (Players only see it, the Host alone changes it), each off until the Host switches it on). For background music, never ship your own files: add "music": true to lamba.json (and "music" to forPlayers to share it) and Lamba plays its own library on the screen, with a Music tile for the Host. No decorative status text or stray icons at the top, no hold to act gestures, and options big enough for a thumb (44 px or more). The Host's phone is the live screen on top and ONE row of tiles from lamba.json,
@@ -57,14 +59,22 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
     `lamba_upload`. Then `lamba_status`. Submit only when the developer asks: `lamba_listing`, fill its gaps from the
     first answers, ask only what is still unknown, then `lamba_submit` (private: `lamba_private`, `lamba_make_live`).
 
+## The kit is read only
+
+Never write an SDK or platform patch, and never say one "must be integrated". If the kit lacks something: look again in
+`lamba_docs` (several slots of one kind, such as two photos, are parts of ONE group, a pill in the drawer), then tell the
+developer plainly what is missing, use the closest supported way, and offer three lines (need, what the kit does today, the
+workaround) to file with Lamba: `lamba_request` when the developer says yes (or the Request a feature page at lamba.tv/devs/requests/new). AGENTS.md ("You cannot change the platform") has the full rule.
+
 ## Play it, every time
 
 After every build or change that passes the check, end your message with a clickable line: `Play it: <link>`.
 
 - **Connected:** the link is the preview link: `lamba_preview`, or `node lamba-check.mjs <app> --preview`. Tap it on a phone
   (Safari or Chrome): the screen is on top, and the host's phone and a player's phone switch with tabs. Anyone with the
-  link can play, so the developer can send it to a friend. It lasts 7 days, the next preview of the app replaces it, and
-  it is not a version: nothing is submitted. "Try on my screen" is on that page for the developer.
+  link can play, so the developer can send it to a friend. It lasts 15 days, the next preview of the app replaces it, and
+  it is not a version: nothing is submitted. It is also in the developer's Drafts on lamba.tv/devs (15 days). "Try on my
+  screen" is on that page for the developer: that puts a checked version on their own screens for 7 days.
 - **Not connected yet:** say once, in plain words: "To get a link you can open on your phone, connect Lamba (one tap)."
   Then run "Connect Lamba" below, and post the link.
 - On a machine with a browser you may also offer `node lamba-test.mjs <app> --serve`. Never make "open the simulator
@@ -132,3 +142,5 @@ the test said, and what the developer still has to do (connecting Lamba, submitt
   saved data, sound, motion and camera, the remote's OK, with code to copy
 - [references/review.md](references/review.md): the review checklist
 - `templates/icon-template.svg`, `templates/card-template.svg`: the icon and card with their safe areas drawn
+- `templates/phone-viewports.test.mjs`: the Host's and a Player's phone in WebKit at iPhone sizes, upright and sideways, sheet up
+  and down; checks 44 px targets, equal keys, no scrolling and nothing moving under a finger. Copy it next to `lamba-test.mjs`

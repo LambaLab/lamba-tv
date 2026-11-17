@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Fireside</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  Fireside on a Player's phone (view "guest", the whole phone), and on a visitor's (Lamba.visitor true): one big press and
+  hold key, low where the thumb rests. LambaUI.hold does the hold the same on every phone:
+    - the finger is captured on the press, so sliding off the key never drops it; Enter and Space hold it too;
+    - start: { type: "fan", on: true, every } to the screen; while held, { type: "fan-beat" } every `every` ms;
+    - release, a cancelled touch, the page hidden or left, or 20 seconds: { type: "fan", on: false }, once;
+    - the screen lets a hold expire when its beats stop, so a lost message never leaves the fire growing.
+  A visitor beats more slowly (every 2.5 s): a visitor may send 40 messages a minute (lamba.json visitors.perMinute).
+  The glow on the key grows while it is held (one CSS variable, drawn by the phone itself), and the screen's fire grows too.
+-->
+<style>
+.l-remote { --l-remote: #1b0d07; --l-remote-hi: #4a1d0a; --l-key: #ff8a2a; --l-key-hi: #ffb35c; --l-key-edge: #8f3a0c; --l-key-ink: #2a0f03; --l-me: #ffb35c; }
+.l-well { position: relative; }
+/* the glow behind the key: --held runs from 0 to 1 while it is held */
+.l-well::before { content: ""; position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 170, 70, .55), rgba(255, 120, 40, 0));
+  transform: translate(-50%, -50%) scale(calc(1 + var(--held, 0) * .7)); opacity: calc(var(--held, 0) * 1.3); transition: opacity .25s ease; }
+#fan { position: relative; font-size: 22px; }
+#fan small { display: block; margin-top: 6px; font: 600 15px/1 Figtree, sans-serif; opacity: .8; }
+@media (prefers-reduced-motion: reduce) { .l-well::before { transform: translate(-50%, -50%); } }
+</style>
+</head>
+<body>
+<main class="l-remote">
+  <div class="l-remote-main"><div class="l-well" id="well"><button type="button" class="l-key l-big" id="fan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-7 .6 1.8 1.4 3 2.6 3.6 0-3-.6-5.4.4-7.6z"/></svg>Fan<small>Hold</small></button></div></div>
+</main>
+<script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    if (L.screen.view !== "guest") return;
+    var well = document.getElementById("well"), every = function () { return L.visitor ? 2500 : 1500; }, t0 = 0, raf = 0;
+    var glow = function () { var k = Math.min(1, (Date.now() - t0) / 6000); well.style.setProperty("--held", (.25 + .75 * k).toFixed(3)); raf = requestAnimationFrame(glow); };
+    var bind = function () {
+      return LambaUI.hold(document.getElementById("fan"), {
+        every: every(), max: 20000,
+        start: function () { t0 = Date.now(); L.send({ type: "fan", on: true, every: every() }); cancelAnimationFrame(raf); glow(); },
+        beat: function () { L.send({ type: "fan-beat" }); },
+        end: function () { L.send({ type: "fan", on: false }); cancelAnimationFrame(raf); well.style.setProperty("--held", "0"); }
+      });
+    };
+    var hold = bind();
+    // a visitor who takes a Player's seat beats at the Player's pace from now on
+    if (L.onSeat) L.onSeat(function () { hold.off(); hold = bind(); });
+    L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

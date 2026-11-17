@@ -205,6 +205,29 @@ and `lamba-test.mjs` runs them. See docs "Motion and camera" and the example `mo
 
 ## Players and seats (lamba.json)
 
+Game seats (`players`, 50 at most) are for games; many people sending a little (fan a fire, cheer, vote) are an audience:
+`"visitors": { "max": 100, "perMinute": 40 }`, 200 at most, same page and messages, `Lamba.visitor` true. The room's real limits
+(4 KB a message, 40 a second from one phone, the line of 10) are in the SDK reference, "Game seats or an audience".
+
+## A press and hold key (a Player's remote)
+
+```js
+// phone.html (view "guest"): start, a beat while held, one end however it ends (release, cancel, page hidden, 20 s)
+var every = Lamba.visitor ? 2500 : 1500;   // a visitor has perMinute messages a minute
+LambaUI.hold(document.getElementById("fan"), { every: every, max: 20000,
+  start: function () { Lamba.send({ type: "fan", on: true, every: every }); },
+  beat: function () { Lamba.send({ type: "fan-beat" }); },
+  end: function () { Lamba.send({ type: "fan", on: false }); } });
+// tv.html: one hold per phone, expired when its beats stop, so nothing grows forever
+var holds = {};
+Lamba.on("fan", function (m, from) { if (m.on) holds[from] = { since: Date.now(), at: Date.now(), every: m.every || 1500 }; else delete holds[from]; });
+Lamba.on("fan-beat", function (m, from) { if (holds[from]) holds[from].at = Date.now(); });
+// each frame: for (k in holds) if (Date.now() - holds[k].at > holds[k].every * 2.5 + 500) delete holds[k];
+```
+
+Bound the screen's work however many hold: a fixed most of particles, at most 30 pictures a second, a small canvas scaled up at the
+page's own shape. The example `fireside` has all of it.
+
 ```json
 "players": { "min": 2, "max": 2 }, "guests": true, "screens": { "tv": "tv.html", "phone": "phone.html" }
 ```

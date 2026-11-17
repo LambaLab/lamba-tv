@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fireside</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@600&display=swap">
+<!--
+  Fireside, the screen page: an ambient fire the whole room can fan (docs: https://lamba.tv/devs/docs/).
+
+  What it shows:
+    - Art fills the screen. The canvas always covers the whole page, edge to edge, whatever its size (a second app beside
+      it makes the page smaller). It is drawn small (270 lines at most) and scaled up by CSS at the page's OWN shape, so
+      it is never stretched, and an old screen draws few pixels.
+    - Press and hold from many phones at once. A Player's (or a visitor's) phone sends { type: "fan", on: true, every } when
+      their finger goes down, { type: "fan-beat" } every `every` ms while it stays down, and { type: "fan", on: false } on
+      release. The screen keeps one hold per phone and lets it expire when the beats stop (a phone that lost its link, a
+      message the room dropped), so the fire always stops growing. The longer someone holds, the more their hold adds.
+    - Ambient controllers, not game seats: lamba.json gives 8 Players' seats and 100 visitors (low rate, 40 messages a
+      minute each). Both send the same messages; L.players and L.visitors list them.
+    - Decorations that never shrink the scene: the two photos stand on the mantel, drawn over the fire as their own
+      layer, sized from the page's height. Hidden or empty, nothing else moves.
+    - Bounded work for old screens: at most 30 pictures a second, at most 140 flames on the screen (40 on the copy on the
+      Host's phone), the glow drawn from one ready made sprite, and nothing at all while the page is hidden.
+  Views: "screen" decides; "preview" (the copy on the Host's phone) draws a calmer fire; "picture" draws one still.
+  Old screen browsers (Chrome 61): ES5 only, no flex gap, no clamp().
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #120804; }
+#scene { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+/* the mantel's photos: their own layer over the scene, placed by size() on the mantel shelf, sized by the page's height */
+#photos { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.ph { position: absolute; box-sizing: border-box; border: 1vh solid #a7743f; background: #2a160c;
+  box-shadow: 0 1.2vh 2.4vh rgba(0, 0, 0, .55); overflow: hidden; opacity: 1; -webkit-transition: opacity .6s ease; transition: opacity .6s ease; }
+.ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ph.off { opacity: 0; }
+/* a small pill in a bottom corner, never where the fire is */
+#who { position: absolute; right: 3%; bottom: 4%; padding: .9vh 2vh; border-radius: 4vh; background: rgba(0, 0, 0, .45); color: #ffe2bf;
+  font: 600 3.2vh/1 Figtree, sans-serif; opacity: 0; -webkit-transition: opacity .4s ease; transition: opacity .4s ease; }
+#who.on { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="photos"><div class="ph off" id="ph-left"></div><div class="ph off" id="ph-right"></div></div>
+<div id="who" role="status"></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LOOK = {   // each fire: the hot middle, the flame, its edge, the room's glow
+    logs: { core: [255, 236, 190], mid: [255, 150, 50], edge: [215, 60, 20], glow: "255,140,50", base: .35 },
+    embers: { core: [255, 200, 140], mid: [235, 95, 35], edge: [150, 35, 15], glow: "230,90,30", base: .18 }
+  };
+  var canvas = document.getElementById("scene"), ctx = canvas.getContext("2d");
+  var W = 0, H = 0, sprite = null, spriteFor = "";
+
+  Lamba.ready(function (L) {
+    var view = L.screen.view, isTv = view === "screen", still = view === "picture";
+    var MAXF = view === "preview" ? 40 : 140;   // the most flames at once: the copy on the Host's phone is lighter
+    var look = function () { return LOOK[still && L.screen.picture && L.screen.picture.setting === "flame" ? L.screen.picture.value : L.settings.flame] || LOOK.logs; };
+
+    // ---- the size: the page's own shape, drawn small (at most 270 lines), never stretched ----
+    function size() {
+      var w = window.innerWidth || 1, h = window.innerHeight || 1, k = Math.min(1, 270 / h);
+      W = Math.max(16, Math.round(w * k)); H = Math.max(16, Math.round(h * k));
+      if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; spriteFor = ""; }
+      // the photos stand on the shelf (at 33% of the height), either side of the fire, inside the page however narrow it is
+      var ph = h * .2, pw = ph * .75, ow = Math.min(w * .7, h * 1.1), off = Math.min(ow * .36, w / 2 - pw * .6);
+      [["left", -1], ["right", 1]].forEach(function (s) {
+        var el = document.getElementById("ph-" + s[0]); el.style.width = Math.round(pw) + "px"; el.style.height = Math.round(ph) + "px";
+        el.style.top = Math.round(h * .33 - ph) + "px"; el.style.left = Math.round(w / 2 + s[1] * off - pw / 2) + "px";
+      });
+    }
+    // one soft flame blob, made once per look and size: every flame is this picture, scaled
+    function makeSprite(c) {
+      var key = c.core.join() + c.mid.join() + H; if (spriteFor === key) return; spriteFor = key;
+      var s = Math.max(8, Math.round(H / 6)); sprite = document.createElement("canvas"); sprite.width = sprite.height = s * 2;
+      var g = sprite.getContext("2d"), r = g.createRadialGradient(s, s, 0, s, s, s);
+      r.addColorStop(0, "rgba(" + c.core.join() + ",.9)"); r.addColorStop(.35, "rgba(" + c.mid.join() + ",.55)"); r.addColorStop(1, "rgba(" + c.edge.join() + ",0)");
+      g.fillStyle = r; g.fillRect(0, 0, s * 2, s * 2);
+    }
+
+    // ---- who is fanning: one hold per phone, kept alive by its beats ----
+    var holds = {}, heat = 0, boost = 0;   // heat: 0 to 1, what the fire shows; boost: a log the Host added, fading
+    function fan(m, from) {
+      if (!isTv && view !== "preview") return;
+      var now = Date.now(), every = Math.max(500, Math.min(5000, +m.every || 1500));
+      if (m.type === "fan" && m.on) { if (!holds[from]) holds[from] = { since: now, at: now, every: every }; else holds[from].at = now; }
+      else if (m.type === "fan-beat") { if (holds[from]) holds[from].at = now; }
+      else if (m.type === "fan") delete holds[from];
+      if (isTv) tell();
+    }
+    L.on("fan", fan); L.on("fan-beat", fan);
+    L.on("action", function (m) { if (m.key === "log") boost = 1; });
+    function target() {
+      var now = Date.now(), sum = 0, n = 0, k;
+      for (k in holds) {
+        var h = holds[k];
+        if (now - h.at > h.every * 2.5 + 500) { delete holds[k]; continue; }   // its beats stopped: the hold expires
+        n++; sum += .25 + .75 * Math.min(1, (now - h.since) / 6000);           // the longer it is held, the more it adds
+      }
+      return { n: n, t: Math.min(1, look().base + sum * .3 + boost * .35) };
+    }
+    // the corner pill: how many are fanning now (said only while someone is)
+    var lastN = -1, who = document.getElementById("who");
+    function tell(n) {
+      if (n === undefined) n = target().n; if (n === lastN) return; lastN = n;
+      who.textContent = n === 1 ? "1 fanning" : n + " fanning"; who.className = n > 0 && !still ? "on" : "";
+    }
+
+    // ---- the picture ----
+    var flames = [], last = 0;
+    function frame(now) {
+      if (!still) raf(frame);
+      if (document.hidden) return;
+      if (!still && now - last < 33) return;   // at most 30 pictures a second
+      var dt = Math.min(.1, (now - (last || now)) / 1000); last = now;
+      var c = look(), tg = still ? { n: 0, t: c.base + .25 } : target();
+      if (isTv) tell(tg.n);
+      heat += (tg.t - heat) * Math.min(1, dt * 1.6); if (still) heat = tg.t; boost = Math.max(0, boost - dt * .12);
+      makeSprite(c);
+      // the room: a dark wall lit from the hearth, the hearth's opening, the mantel shelf, the floor
+      var g = ctx.createRadialGradient(W / 2, H * .82, H * .05, W / 2, H * .82, Math.max(W, H) * (.55 + heat * .35));
+      g.addColorStop(0, "rgba(" + c.glow + "," + (.35 + heat * .4) + ")"); g.addColorStop(1, "rgba(20,8,4,1)");
+      ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = "#140804"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      var ow = Math.min(W * .7, H * 1.1), ox = (W - ow) / 2, oy = H * .38;
+      ctx.fillStyle = "rgba(8,3,1,.85)"; ctx.fillRect(ox, oy, ow, H - oy);
+      ctx.fillStyle = "#4a2512"; ctx.fillRect(ox - H * .06, H * .33, ow + H * .12, H * .05);   // the mantel shelf
+      // logs
+      ctx.strokeStyle = "#3b1b0b"; ctx.lineCap = "round"; ctx.lineWidth = H * .05;
+      ctx.beginPath(); ctx.moveTo(W / 2 - ow * .28, H * .95); ctx.lineTo(W / 2 + ow * .24, H * .9); ctx.moveTo(W / 2 - ow * .22, H * .88); ctx.lineTo(W / 2 + ow * .3, H * .95); ctx.stroke();
+      // flames: born on the logs, rise and fade; more and bigger with the heat
+      var want = Math.round(MAXF * (.25 + .75 * heat)), i;
+      if (still) { flames = []; for (i = 0; i < want; i++) flames.push(born(c, Math.random())); }
+      else { for (i = 0; i < 6 && flames.length < want; i++) flames.push(born(c, 0)); }
+      ctx.globalCompositeOperation = "lighter";
+      var s = sprite.width;
+      for (i = flames.length - 1; i >= 0; i--) {
+        var f = flames[i]; if (!still) f.age += dt / f.life;
+        if (f.age >= 1) { flames.splice(i, 1); continue; }
+        // a tongue of flame: narrow and tall, thinning as it rises; the hotter the fire, the higher it climbs
+        var r = f.r * (1 - f.age * .75) * (.75 + heat * .5), y = f.y - f.age * H * (.22 + heat * .3), x = f.x + Math.sin(f.age * 7 + f.p) * H * .02 * f.age;
+        ctx.globalAlpha = (1 - f.age) * (1 - f.age) * .9; ctx.drawImage(sprite, x - r * .6, y - r * 2, r * 1.2, r * 2.6);
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      if (flames.length > want + 20) flames.length = want + 20;
+    }
+    function born(c, age) {
+      var spread = Math.min(W * .42, H * .62), u = (Math.random() + Math.random()) / 2 - .5;   // more flames in the middle than at the ends
+      return { x: W / 2 + u * spread * (.7 + heat * .3), y: H * .9, r: H * (.06 + Math.random() * .05) * (1.2 - Math.abs(u)), life: .7 + Math.random() * .7, age: age, p: Math.random() * 6 };
+    }
+    var raf = window.requestAnimationFrame || function (f) { return setTimeout(function () { f(Date.now()); }, 33); };
+
+    // ---- the photos on the mantel: drawn over the scene, never part of its size ----
+    function photos() {
+      ["left", "right"].forEach(function (k) {
+        var el = document.getElementById("ph-" + k), url = L.settings[k] || "", on = !!url && L.settings.show !== false && !still;
+        if (el.getAttribute("data-url") !== url) { el.setAttribute("data-url", url); el.innerHTML = ""; if (url) { var im = new Image(); im.alt = ""; im.src = url; el.appendChild(im); } }
+        el.className = "ph" + (on ? "" : " off");
+      });
+    }
+
+    size(); photos();
+    L.onScreen(function () { size(); });
+    window.addEventListener("resize", size);
+    L.onSettings(function () { photos(); spriteFor = ""; });
+    L.colours({ board: "#140804", ink: "#ffe2bf" });
+    if (isTv) L.joinCard({ show: true, size: "corner", line: "Scan to fan the fire" });   // ambient: the card waits in a corner, the art stays whole
+    frame(0);
+    L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

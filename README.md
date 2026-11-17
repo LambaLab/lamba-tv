@@ -28,7 +28,7 @@ Make it great
 
 How to build it
 1. Before any code, ask me in one short message, with your suggestions: who it's for (everyone, families or made for kids), public on Lamba or private to my organization, its name, and whether Players join from their phones and how many.
-2. Clone github.com/LambaLab/lamba-tv and follow its AGENTS.md and the lamba-tv-app skill.
+2. Get the kit from github.com/LambaLab/lamba-tv (its README: starter.zip into its own folder, lamba-app/) and follow its AGENTS.md and the lamba-tv-app skill.
 3. Run the check and the self-test, look at every screenshot and go through the design checklist. Fix everything until they all pass. Then record its clips with lamba-clips.mjs.
 4. Then tell me in one sentence what you built and how I can try it. Upload it with the kit's upload command if you are connected to Lamba. If not, tell me how to download the branch and zip the app's folder on my phone or computer, to submit at lamba.tv/devs.
 ```
@@ -78,7 +78,7 @@ examples/               more apps to read and copy
 plugin/                 the Claude Code plugin (marketplace: .claude-plugin/marketplace.json)
 ```
 
-Docs: https://lamba.tv/devs/docs/ . Play it: your AI ends each message with a link to your app, a preview that opens on a phone (connect Lamba once, one tap). Simulator: https://lamba.tv/devs/simulator/ . For AI tools: https://lamba.tv/devs/llms.txt
+The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). This repo has no copy of them. Play it: your AI ends each message with a link to your app, a preview that opens on a phone (connect Lamba once, one tap). Simulator: https://lamba.tv/devs/simulator/ . For AI tools: https://lamba.tv/devs/llms.txt
 
 ## Make it yours, by hand
 
@@ -101,7 +101,7 @@ once (one tap, sign-up included). You can also open https://lamba.tv/devs/simula
 - `lamba.json` says what your app is, who joins, its settings and its `actions`. The host draws the Host's phone from it:
   the live screen on top and one row of tiles (Say hello is an action: the screen hears it with `L.on("action", fn)`).
 
-Everything is in the docs: https://lamba.tv/devs/docs/
+The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). The kit has no copy of them.
 
 ### 4. Check it
 
