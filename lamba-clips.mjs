@@ -4,21 +4,25 @@
 // It needs, once, in this folder: npm install && npx playwright install chromium   (Playwright, and ffmpeg-static when
 // the computer has no ffmpeg of its own)
 // What it does:
-//   1. opens the app in the real simulator (the one inside lamba-test.mjs, next to this script): the TV, the owner's
-//      phone and guests, served from this computer
+//   1. opens the app in the real simulator (the one inside lamba-test.mjs, next to this script): the screen, the Host's
+//      phone and Players, served from this computer
 //   2. plays a short session on the phones: the taps in --script, else random taps on their buttons, the bigger ones
 //      more often, and records it
+//   (the app is recorded with no frame or mat, so the clips show its own picture)
 //   3. writes, in the exact format an app page wants (540 x 920, H.264, <seconds> s, no sound, each with its
-//      -poster.webp, the clip's first frame):
-//        clips/<id>-play.mp4       the TV, and a phone below it
-//        clips/<id>-phone.mp4      a phone, big
-//        clips/<id>-settings.mp4   an app with settings of its own: the owner chooses, the TV changes
+//      -poster.webp, the clip's first frame). The phone is the real Lamba remote (the preview, the sheet and its tiles), captured at
+//      exactly 390 x 844 and cut to its own rounded glass, never a page around it, so there are no white edges; the screen is its
+//      picture edge to edge:
+//        clips/<id>-play.mp4       the whole screen picture (16:9, never cropped) edge to edge across the top, a phone at a natural size over its lower right, the
+//                                  caption in the free space, all on a soft gradient of the app's tint (lamba.json "tint")
+//        clips/<id>-phone.mp4      the phone, big, on that gradient
+//        clips/<id>-settings.mp4   an app with settings of its own: the Host chooses, the screen changes
 //   4. lists them in lamba.json "clips" and removes the starter's placeholder clips.
 // Then look at each poster, and write captions in lamba.json that say what each clip shows.
 //
 // --script steps.json: a list played in a loop, for a session that shows the app at its best, e.g.
 //   [{ "phone": "g1", "tap": "#answer-2" }, { "wait": 900 }, { "phone": "g2", "tap": ".go" }, { "phone": "owner", "tap": "#next" }]
-//   phone: "g1", "g2", "g3" (guests) or "owner"; tap: a CSS selector on that phone's page; wait: milliseconds.
+//   phone: "g1", "g2", "g3" (Players) or "owner" (the Host); tap: a CSS selector on that phone's page; wait: milliseconds.
 import { createServer } from "node:http";
 import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, writeFileSync, rmSync, mkdtempSync, unlinkSync } from "node:fs";
 import { join, resolve, relative, basename, dirname, sep, extname } from "node:path";
@@ -86,10 +90,10 @@ const SKIP = n => n === "node_modules" || n.startsWith(".") || n === "lamba-test
 function walk(dir) { const out = []; const go = d => { for (const n of readdirSync(d)) { const f = join(d, n); if (SKIP(n)) continue; if (statSync(f).isDirectory()) go(f); else out.push(relative(dir, f).split(sep).join("/")); } }; go(dir); return out.sort(); }
 const CRC = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; CRC[n] = c >>> 0; }
 const crc = b => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-function zipOf(dir, prefix) {
+function zipOf(dir, prefix, patch) {
   const parts = [], central = []; let at = 0; const paths = walk(dir);
   for (const rel of paths) {
-    const data = readFileSync(join(dir, rel)), name = Buffer.from(prefix + rel, "utf8"), c = crc(data);
+    let data = readFileSync(join(dir, rel)); if (patch && rel === "lamba.json") data = patch(data); const name = Buffer.from(prefix + rel, "utf8"), c = crc(data);
     const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x800, 6); h.writeUInt32LE(c, 14); h.writeUInt32LE(data.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(name.length, 26);
     const e = Buffer.alloc(46); e.writeUInt32LE(0x02014b50, 0); e.writeUInt16LE(20, 4); e.writeUInt16LE(20, 6); e.writeUInt16LE(0x800, 8); e.writeUInt32LE(c, 16); e.writeUInt32LE(data.length, 20); e.writeUInt32LE(data.length, 24); e.writeUInt16LE(name.length, 28); e.writeUInt32LE(at, 42);
     parts.push(h, name, data); central.push(e, name); at += 30 + name.length + data.length;
@@ -111,6 +115,12 @@ async function sealed(p, rig, view, ms) {   // the app's own page inside a rig, 
   return null;
 }
 const box = async (p, sel) => { const b = await p.$eval(sel, e => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }).catch(() => null); return b && b.w > 20 && b.h > 20 ? b : null; };
+const showRig = async (p, rig) => { await p.evaluate(r => { const i = [...document.querySelectorAll(".sim-phone")].findIndex(x => x.dataset.rig === r), t = document.querySelectorAll("#who button")[i]; if (t) t.click(); }, rig); await new Promise(r => setTimeout(r, 250)); };   // one phone shows at a time: the Remote control's Host | Player switch picks it
+// every phone at exactly 390 x 844 (a phone's real size, as lamba-test takes it): the real remote page unscaled, no bezel, no radius, no shadow: what is captured is the remote and nothing else
+async function realSize(p) {
+  await p.evaluate(() => { SIM.still = true; for (const g of document.querySelectorAll(".sim-phone .sim-glass")) { const f = g.querySelector("iframe"); g.style.cssText += ";width:390px;height:844px;margin:0;border-radius:0;box-shadow:none;background:#000"; if (f) { f.style.width = "390px"; f.style.height = "844px"; f.style.transform = "none"; } } dispatchEvent(new Event("resize")); });
+  await wait(700);
+}
 const glass = rig => 'figure.sim-phone[data-rig="' + rig + '"] .sim-glass';
 
 // one tap on a phone: a step of the script, else something on screen chosen at random (bigger things more often)
@@ -168,9 +178,11 @@ function camera(p, cdp, tmp) {
 }
 // the simulator, bigger: the phones as tall as a clip, the stage at the top of the window (the page's own sizes otherwise)
 const BIG = "(function(){if(window!==top||!/\\/devs\\/simulator\\//.test(location.pathname))return;var s=document.createElement('style');"
-  + "s.textContent='.sim-stage{--ph:860px!important}.dv-wrap:has(.sim){max-width:none!important}.dv-head,.dv-foot{display:none!important}';"
+  + "s.textContent='.dv-wrap:has(.sim){max-width:none!important}.dv-head,.dv-foot{display:none!important}.sim-top{display:none!important}.sim-ph{display:none!important}';"
   + "document.addEventListener('DOMContentLoaded',function(){document.head.appendChild(s)});})();";
 
+// the clips show the app's own picture, so the copy the simulator plays has no frame or mat (lamba.json "frame": "none"; the file on disk is not changed)
+const noFrame = buf => { try { const m = JSON.parse(buf.toString("utf8")); m.frame = "none"; return Buffer.from(JSON.stringify(m)); } catch (e) { return buf; } };
 async function record(dir, base, browser, tmp) {
   const m = JSON.parse(readFileSync(join(dir, "lamba.json"), "utf8")), id = m.id || basename(dir);
   const pl = m.players || {}, guestsN = m.guests ? Math.max(1, Math.min(3, pl.max || 1, Math.max(2, pl.min || 1))) : 0;
@@ -180,36 +192,36 @@ async function record(dir, base, browser, tmp) {
   await ctx.addInitScript(BIG);
   const p = await ctx.newPage(), cam = camera(p, await ctx.newCDPSession(p), tmp);
   const errors = []; p.on("pageerror", e => errors.push(e.message));
-  await p.goto(base + "/devs/simulator/" + (guestsN ? "?guests=" + guestsN : ""));
+  await p.goto(base + "/devs/simulator/" + (guestsN ? "?guests=" + guestsN + "&join=skip" : ""));   // (join=skip: the Players are in the app at once, not on Lamba's join steps)
   await p.waitForSelector("#zipBtn", { timeout: 15000 });
-  await p.setInputFiles("#zipInput", { name: id + ".zip", mimeType: "application/zip", buffer: zipOf(dir, id + "/") });
+  await p.setInputFiles("#zipInput", { name: id + ".zip", mimeType: "application/zip", buffer: zipOf(dir, id + "/", noFrame) });
   if (!await sealed(p, "tv", "screen", 15000)) throw new Error("the screen page never said hello: run node lamba-test.mjs " + basename(dir) + " and fix what it says first");
   const rigs = guestsN ? Array.from({ length: guestsN }, (x, i) => "g" + (i + 1)) : ["owner"], phones = {};
   for (const r of rigs) phones[r] = await sealed(p, r, r === "owner" ? "controller" : "guest", 10000);
   if (guestsN) phones.owner = await sealed(p, "owner", "controller", 4000);
   const main = rigs[0];
-  if (!phones[main]) throw new Error("the phone page never said hello on " + (guestsN ? "a guest's phone" : "the owner's phone"));
+  if (!phones[main]) throw new Error("the phone page never said hello on " + (guestsN ? "a Player's phone" : "the Host's phone"));
   const top = async () => { await p.evaluate(() => { const s = document.getElementById("stage"); if (s) scrollTo(0, s.getBoundingClientRect().top + scrollY); }); await wait(1500); };
-  await top();
+  await showRig(p, main); await realSize(p); await top();
   const windows = [];
-  // the TV and a phone, then the same phone big
+  // the screen and a phone, then the same phone big
   for (const kind of ["play", "phone"]) {
-    const tv = await box(p, "#tvScreen"), ph = await box(p, glass(main));
+    await showRig(p, main); const tv = await box(p, "#tvScreen"), ph = await box(p, glass(main));
     if (!tv || !ph) throw new Error("the simulator's screen or phone is not on screen");
     const from = await cam.start(); await play(phones, main, steps, SECONDS * 1000 + 500);
     windows.push({ kind, from, to: Date.now() / 1000, frames: await cam.stop(), tv, ph });
   }
-  // settings of its own: the owner's drawer open at the first setting with pictures to choose, each choice sent to the TV
+  // settings of its own: the Host's drawer open at the first setting with pictures to choose, each choice sent to the screen
   const fields = (m.settings || {}).fields || {}, pick = q => q && q.setting && ["choice", "switch", "colour"].includes((fields[q.setting] || {}).type);
   const g = ((m.settings || {}).groups || []).find(x => x && x.key && Array.isArray(x.parts) && x.parts.some(pick));
   if (g) {
     const part = g.parts.find(pick);
-    await p.goto(base + "/devs/simulator/?app=local" + (guestsN ? "&guests=" + guestsN : "") + "&g=" + encodeURIComponent(g.key) + "&p=" + encodeURIComponent(part.setting));
+    await p.goto(base + "/devs/simulator/?app=local" + (guestsN ? "&guests=" + guestsN + "&join=skip" : "") + "&g=" + encodeURIComponent(g.key) + "&p=" + encodeURIComponent(part.setting));
     const host = await (async () => { const end = Date.now() + 10000; while (Date.now() < end) { const f = rigFrame(p, "owner"); if (f && await f.$(".ctl-strip button").catch(() => null)) return f; await wait(200); } return null; })();
     await sealed(p, "tv", "screen", 10000);
     for (const r of rigs) if (r !== "owner") phones[r] = await sealed(p, r, "guest", 6000);
-    await top();
-    const tv = await box(p, "#tvScreen"), ph = await box(p, glass("owner"));
+    await showRig(p, "owner"); await realSize(p); await top();
+    await showRig(p, "owner"); const tv = await box(p, "#tvScreen"), ph = await box(p, glass("owner"));
     if (host && tv && ph) {
       const n = await host.evaluate(() => document.querySelectorAll(".ctl-strip button").length).catch(() => 0), from = await cam.start(), end = Date.now() + SECONDS * 1000 + 500;
       for (let i = 1; Date.now() < end && n; i++) {
@@ -228,7 +240,40 @@ async function record(dir, base, browser, tmp) {
 
 // ---------- the clips: cut out, laid out at 540 x 920, H.264 ----------
 const even = n => Math.max(2, Math.round(n / 2) * 2);
-function cut(w, out, tmp) {
+// a PNG made in the browser: the phone's rounded glass as a mask (white inside), and its soft shadow (black, blurred)
+async function pngs(browser, pw, ph, tmp) {
+  const pg = await browser.newPage();
+  const r = Math.round(pw * 0.12), pad = 48;
+  const out = await pg.evaluate(({ pw, ph, r, pad }) => {
+    const rr = (x, y, w, h, c) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    const m = document.createElement("canvas"); m.width = pw; m.height = ph; const mc = m.getContext("2d"); mc.fillStyle = "#000"; mc.fillRect(0, 0, pw, ph); mc.fillStyle = "#fff"; rr(0, 0, pw, ph, mc); mc.fill();
+    const s = document.createElement("canvas"); s.width = pw + 2 * pad; s.height = ph + 2 * pad; const sc = s.getContext("2d"); sc.filter = "blur(16px)"; sc.fillStyle = "rgba(0,0,0,.55)"; rr(pad, pad, pw, ph, sc); sc.fill();
+    return { mask: m.toDataURL("image/png").split(",")[1], shadow: s.toDataURL("image/png").split(",")[1] };
+  }, { pw, ph, r, pad });
+  await pg.close();
+  const mask = join(tmp, "mask-" + pw + "x" + ph + ".png"), shadow = join(tmp, "shadow-" + pw + "x" + ph + ".png");
+  writeFileSync(mask, Buffer.from(out.mask, "base64")); writeFileSync(shadow, Buffer.from(out.shadow, "base64"));
+  return { mask, shadow, pad };
+}
+// the ground: a soft gradient of the app's tint over the whole clip, and (first clip) the caption in the free area at the left
+async function groundPng(browser, tint, caption, tmp, side) {
+  const pg = await browser.newPage();
+  const b64 = await pg.evaluate(({ W, H, tint, caption, side }) => {
+    const mix = (hex, t, to) => { const n = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), m = to === "w" ? 255 : 0; return "rgb(" + n.map(c => Math.round(c + (m - c) * t)).join(",") + ")"; };
+    const c = document.createElement("canvas"); c.width = W; c.height = H; const x = c.getContext("2d");
+    const g = x.createLinearGradient(0, 0, W * 0.35, H); g.addColorStop(0, mix(tint, 0.16, "w")); g.addColorStop(1, mix(tint, 0.6, "b")); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const r = x.createRadialGradient(W * 0.2, H * 0.62, 10, W * 0.2, H * 0.62, W * 0.9); r.addColorStop(0, "rgba(255,255,255,.10)"); r.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = r; x.fillRect(0, 0, W, H);
+    if (caption && side) {
+      x.fillStyle = "#fff"; x.font = "650 25px system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"; x.textBaseline = "top";
+      const words = caption.split(" "), lines = []; let cur = ""; for (const w of words) { const t = cur ? cur + " " + w : w; if (x.measureText(t).width > side.w && cur) { lines.push(cur); cur = w; } else cur = t; } if (cur) lines.push(cur);
+      const lh = 31, y0 = side.y - (lines.length * lh) / 2; lines.forEach((l, i) => x.fillText(l, side.x, y0 + i * lh));
+    }
+    return c.toDataURL("image/png").split(",")[1];
+  }, { W, H, tint, caption, side });
+  await pg.close();
+  const f = join(tmp, "ground-" + (caption ? "c" : "n") + ".png"); writeFileSync(f, Buffer.from(b64, "base64")); return f;
+}
+async function cut(browser, w, out, tmp, m) {
   // the frames as they came, each shown until the next one (ffmpeg's concat list)
   const fr = w.frames.filter(f => f.t >= w.from - 0.05);
   if (!fr.length) throw new Error("no picture was recorded");
@@ -236,19 +281,27 @@ function cut(w, out, tmp) {
   fr.forEach((f, i) => { L.push("file '" + f.file.replace(/'/g, "'\\''") + "'"); L.push("duration " + Math.max(0.001, ((i + 1 < fr.length ? fr[i + 1].t : Math.max(w.to, f.t + 0.04)) - f.t)).toFixed(4)); });
   L.push("file '" + fr[fr.length - 1].file.replace(/'/g, "'\\''") + "'");
   writeFileSync(list, L.join("\n") + "\n");
-  // with their bezels: the phone's 8 px, the TV's 10 px
-  const crop = (b, e) => "crop=" + even(b.w + 2 * e) + ":" + even(b.h + 2 * e) + ":" + even(b.x - e) + ":" + even(b.y - e);
-  const M = 28, bg = ":color=" + BG;
-  let filter;
-  if (w.kind === "phone") {   // the phone, big
-    const ph = even(H - 2 * M), pw = even(ph * (w.ph.w + 16) / (w.ph.h + 16));
-    filter = "[0:v]fps=" + FPS + "," + crop(w.ph, 8) + ",scale=" + pw + ":" + ph + ":flags=lanczos,setsar=1,pad=" + W + ":" + H + ":" + (W - pw) / 2 + ":" + M + bg + ",format=yuv420p[v]";
-  } else {   // the TV on top, the phone below it
-    const tw = W - 2 * 14, th = even(tw * (w.tv.h + 20) / (w.tv.w + 20)), py = M + th + M, ph = even(H - py - M), pw = even(ph * (w.ph.w + 16) / (w.ph.h + 16));
-    filter = "[0:v]fps=" + FPS + ",split=2[a][b];[a]" + crop(w.tv, 10) + ",scale=" + tw + ":" + th + ":flags=lanczos,setsar=1,pad=" + W + ":" + H + ":14:" + M + bg + "[top];"
-      + "[b]" + crop(w.ph, 8) + ",scale=" + pw + ":" + ph + ":flags=lanczos,setsar=1[ph];[top][ph]overlay=" + (W - pw) / 2 + ":" + py + ",format=yuv420p[v]";
+  // exact boxes, no bezel and no page around them: the phone is 390 x 844 (its own glass), the screen is its picture
+  const crop = (b, e = 1) => "crop=" + (Math.floor(b.w) - 2 * e) + ":" + (Math.floor(b.h) - 2 * e) + ":" + (Math.ceil(b.x) + e) + ":" + (Math.ceil(b.y) + e);   // inside the box: one pixel for the phone, 4 for the screen (its corners are rounded 12 px, and the page shows white behind a rounded corner)
+  const tint = /^#[0-9a-fA-F]{6}$/.test((m || {}).tint || "") ? m.tint : "#3a3d48";
+  let pw, ph, x, y, base, ground;
+  if (w.kind === "phone") {   // the phone, big, centred on the tint's soft gradient
+    ph = even(H - 2 * 28); pw = even(ph * w.ph.w / w.ph.h); x = (W - pw) / 2; y = 28;
+    ground = await groundPng(browser, tint, "", tmp, null);
+    base = "[3:v]null[base]";
+  } else {   // the WHOLE screen picture (16:9, never cropped) edge to edge across the top; the phone at a natural size over its lower right by a fifth of its height, clear of the centre
+    const th = even(W * 9 / 16);
+    pw = 250; ph = even(pw * w.ph.h / w.ph.w); x = W - pw - 12; y = th - Math.round(ph * 0.2);
+    ground = await groundPng(browser, tint, CAPTION[w.kind] || "", tmp, { x: 22, y: Math.round((th + H) / 2) + 20, w: x - 22 - 16 });
+    base = "[0:v]fps=" + FPS + "," + crop(w.tv, 4) + ",scale=" + W + ":" + th + ":flags=lanczos,setsar=1,format=yuv420p[sc];[3:v][sc]overlay=0:0[base]";
   }
-  execFileSync(FF, ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, "-filter_complex", filter, "-map", "[v]", "-t", String(SECONDS), "-r", String(FPS),
+  const g = await pngs(browser, pw, ph, tmp), pad = g.pad;
+  const filter = base + ";[0:v]fps=" + FPS + "," + crop(w.ph) + ",scale=" + pw + ":" + ph + ":flags=lanczos,setsar=1,format=yuva420p[p0];"
+    + "[1:v]scale=" + pw + ":" + ph + ",format=gray[m];[p0][m]alphamerge[phone];"
+    + "[base][2:v]overlay=" + (x - pad) + ":" + (y - pad + 12) + ":format=auto[b2];[b2][phone]overlay=" + x + ":" + y + ":format=auto,format=yuv420p[v]";
+  execFileSync(FF, ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, "-loop", "1", "-framerate", String(FPS), "-i", g.mask, "-loop", "1", "-framerate", String(FPS), "-i", g.shadow,
+    "-loop", "1", "-framerate", String(FPS), "-i", ground,
+    "-filter_complex", filter, "-map", "[v]", "-t", String(SECONDS), "-r", String(FPS),
     "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "23", "-preset", "slow", "-an", "-movflags", "+faststart", out]);
 }
 // the poster: the clip's first frame, as webp (Chromium writes it)
@@ -284,7 +337,7 @@ if (!existsSync(join(dir, "lamba.json"))) { say("lamba clips: " + dir + " has no
 const tmp = mkdtempSync(join(tmpdir(), "lamba-clips-"));
 const server = await serve(), base = "http://127.0.0.1:" + server.address().port;
 let browser;
-try { browser = await chromium.launch({ headless: !HEADED }); }
+try { browser = await chromium.launch({ headless: !HEADED, args: ["--mute-audio"] }); }
 catch (e) { say("lamba clips: Chromium is not installed for Playwright. Run: npx playwright install chromium"); server.close(); process.exit(2); }
 let R;
 try { say("lamba clips: recording " + basename(dir) + " in the simulator (about " + Math.round(SECONDS * 3 + 15) + " s)"); R = await record(dir, base, browser, tmp); }
@@ -294,7 +347,7 @@ const made = [];
 try {
   for (const w of R.windows) {
     const name = R.id + "-" + w.kind, mp4 = join(dir, "clips", name + ".mp4"), webp = join(dir, "clips", name + "-poster.webp");
-    cut(w, mp4, tmp); await poster(browser, mp4, webp);
+    await cut(browser, w, mp4, tmp, R.m); await poster(browser, mp4, webp);
     made.push({ name, mp4, webp, caption: CAPTION[w.kind] });
   }
 } catch (e) { say("lamba clips: making the clips stopped: " + String(e && (e.stderr && String(e.stderr).trim().split("\n").pop() || e.message) || e).split("\n")[0]); }

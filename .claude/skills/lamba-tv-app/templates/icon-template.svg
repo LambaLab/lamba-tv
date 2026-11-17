@@ -1,0 +1,12 @@
+<!-- Lamba app icon template. Copy it to my-app/icon.svg and change the colours and the drawing.
+     A square. Lamba rounds the corners (about 22%) on every tile, so:
+       - fill the whole square with the background, edge to edge (no white border of your own);
+       - keep the drawing inside the middle: x and y from 9 to 51 (the dashed guide shows it, delete the guide);
+       - one simple shape that reads at 40 px. No words, no thin lines. Keep the file under 20 KB. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5fd0b0"/><stop offset="1" stop-color="#2a6f8f"/></linearGradient></defs>
+  <rect width="60" height="60" fill="url(#g)"/>
+  <rect x="13" y="17" width="34" height="22" rx="3" fill="none" stroke="#fff" stroke-width="3"/>
+  <path d="M24 45h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <rect x="9" y="9" width="42" height="42" fill="none" stroke="#fff" stroke-opacity=".35" stroke-dasharray="2 2" stroke-width=".5"/>
+</svg>

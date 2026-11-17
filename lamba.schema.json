@@ -2,17 +2,20 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "$id": "https://lamba.tv/devs/kit/lamba.schema.json",
  "title": "lamba.json, version 1",
- "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a colours setting's default holds min to max colours; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
+ "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a photo setting's aspect is between 1:4 and 4:1; a colours setting's default holds min to max colours; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; a group with players true needs guests true, holds settings only (no app part, no strokes or transforms); action keys are used once and are not group keys; a group's action names one of actions, once; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
  "x-checker-only": [
   "players.min is at most players.max",
   "a choice setting's default is one of its choices, and each choice id is used once",
   "a number setting has min below max, its default between them, and one label per step",
   "a text setting's default is no longer than its max",
+  "a photo setting's aspect is between 1:4 and 4:1",
   "a colours setting's default holds min to max colours",
   "a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max",
   "resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden",
   "group keys are used once, and a group's part keys once",
   "an app part (parts[].app) needs screens.phone",
+  "a group with players true needs guests true, holds settings only (no app part, no strokes or transforms)",
+  "action keys are used once and are not group keys; a group's action names one of actions, once",
   "the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name",
   "on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has"
  ],
@@ -60,6 +63,12 @@
    "maxLength": 80,
    "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
    "description": "Words people read: at most 80 characters, no en or em dash"
+  },
+  "whatsNew": {
+   "type": "string",
+   "maxLength": 300,
+   "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+   "description": "For an update: what is new in this version, in plain words (300 letters at most, no HTML). Players read it on the app's page as New, and the reviewer reads it"
   },
   "icon": {
    "type": "string",
@@ -263,10 +272,55 @@
      "maximum": 50
     }
    },
-   "description": "Guests playing at once (0 to 50), min at most max"
+   "description": "Players playing at once (0 to 50), min at most max"
   },
   "guests": {
    "type": "boolean"
+  },
+  "askName": {
+   "type": "boolean",
+   "description": "true: a Player is asked their first name once (Lamba keeps it for every app) before the remote, and the app reads it (Lamba.me(), the players' names). Left out or false: a Player goes straight to the remote and the app sees \"Player 1\", \"Player 2\". Ask only if the app shows names (a multiplayer game, scores, turns). Needs guests true"
+  },
+  "music": {
+   "type": "boolean",
+   "description": "true: the Host's phone gets Lamba's Music tile (a style and track, or Off, and a volume) and the screen plays it under the app's own sound, with no app code. Players get it too when forPlayers has \"music\""
+  },
+  "forPlayers": {
+   "type": "array",
+   "minItems": 1,
+   "maxItems": 6,
+   "uniqueItems": true,
+   "items": {
+    "enum": [
+     "sound",
+     "brightness",
+     "frame",
+     "effects",
+     "schedule",
+     "music"
+    ]
+   },
+   "description": "Lamba's own controls Players may be offered on their phones: sound, brightness, frame, effects, schedule, music. The Host switches each one on or off. effects: cracks, lines, colour, signal and flies (never a scare, never in a kids app, they wait for Send). schedule: Players only see when the Screen turns on and off, they never change it. Needs guests true"
+  },
+  "visitors": {
+   "type": "object",
+   "required": [
+    "max"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "max": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 200
+    },
+    "perMinute": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 60
+    }
+   },
+   "description": "More people than players.max, who join with Lamba's join, get the app's player page and send at most perMinute messages a minute each (20 when left out); no seat, never a line. Needs guests true"
   },
   "age": {
    "enum": [
@@ -344,7 +398,7 @@
   },
   "frame": {
    "const": "none",
-   "description": "\"none\": the app starts without a frame or mat (the owner can still pick one)"
+   "description": "\"none\": the app starts without a frame or mat (the Host can still pick one)"
   },
   "position": {
    "type": "object",
@@ -366,6 +420,59 @@
    "properties": {
     "ok": {
      "type": "boolean"
+    }
+   }
+  },
+  "actions": {
+   "type": "array",
+   "minItems": 1,
+   "maxItems": 4,
+   "description": "One tap tiles in the Host's drawer, first in the row unless a group { \"action\": key } places them. A tap sends { type: \"action\", key } to the screen page (Lamba.on(\"action\", fn))",
+   "items": {
+    "type": "object",
+    "required": [
+     "key",
+     "label",
+     "icon"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,23}$",
+      "not": {
+       "enum": [
+        "frame",
+        "mat",
+        "bright",
+        "guest",
+        "scribble",
+        "effects",
+        "schedule",
+        "line",
+        "visitors",
+        "playerctl"
+       ]
+      }
+     },
+     "label": {
+      "type": "string",
+      "maxLength": 24,
+      "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+      "description": "Words people read: at most 24 characters, no en or em dash"
+     },
+     "icon": {
+      "type": "string",
+      "allOf": [
+       {
+        "pattern": "^(?![A-Za-z]+:)(?!/)(?![\\s\\S]*\\\\)(?!(?:[\\s\\S]*/)?\\.\\.(?:/|$))[\\s\\S]{1,119}$"
+       },
+       {
+        "pattern": "\\.([sS][vV][gG])$"
+       }
+      ],
+      "description": "A one colour SVG: the host tints it like every tile's icon"
+     }
     }
    }
   },
@@ -475,7 +582,8 @@
         "fday",
         "fown",
         "fall",
-        "bright"
+        "bright",
+        "pc"
        ]
       }
      },
@@ -511,6 +619,32 @@
          ]
         },
         "required": [
+         "action"
+        ],
+        "properties": {
+         "action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,23}$"
+         }
+        },
+        "description": "Where an action's tile goes in the row: { \"action\": key }"
+       },
+       {
+        "not": {
+         "anyOf": [
+          {
+           "required": [
+            "host"
+           ]
+          },
+          {
+           "required": [
+            "action"
+           ]
+          }
+         ]
+        },
+        "required": [
          "key",
          "label",
          "parts"
@@ -527,8 +661,10 @@
             "guest",
             "scribble",
             "effects",
+            "schedule",
             "line",
-            "visitors"
+            "visitors",
+            "playerctl"
            ]
           }
          },
@@ -537,6 +673,10 @@
           "maxLength": 24,
           "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
           "description": "Words people read: at most 24 characters, no en or em dash"
+         },
+         "players": {
+          "type": "boolean",
+          "description": "true: Players get this group as a tile on their phone too, the same picture tiles (the Host can turn it off)"
          },
          "value": {
           "const": "app"
@@ -680,24 +820,96 @@
     }
    },
    "then": {
-    "required": [
-     "players"
-    ],
     "properties": {
-     "players": {
-      "properties": {
-       "max": {
-        "minimum": 1
-       }
-      }
-     },
      "screens": {
       "required": [
        "phone"
       ]
      }
-    }
+    },
+    "anyOf": [
+     {
+      "required": [
+       "visitors"
+      ]
+     },
+     {
+      "required": [
+       "players"
+      ],
+      "properties": {
+       "players": {
+        "properties": {
+         "max": {
+          "minimum": 1
+         }
+        }
+       }
+      }
+     }
+    ]
    }
+  },
+  {
+   "if": {
+    "required": [
+     "forPlayers"
+    ]
+   },
+   "then": {
+    "required": [
+     "guests"
+    ],
+    "properties": {
+     "guests": {
+      "const": true
+     }
+    }
+   },
+   "description": "forPlayers: Players join the app, guests true"
+  },
+  {
+   "if": {
+    "required": [
+     "forPlayers"
+    ],
+    "properties": {
+     "forPlayers": {
+      "contains": {
+       "const": "music"
+      }
+     }
+    }
+   },
+   "then": {
+    "required": [
+     "music"
+    ],
+    "properties": {
+     "music": {
+      "const": true
+     }
+    }
+   },
+   "description": "forPlayers music: the app uses Lamba's music, music true"
+  },
+  {
+   "if": {
+    "required": [
+     "visitors"
+    ]
+   },
+   "then": {
+    "required": [
+     "guests"
+    ],
+    "properties": {
+     "guests": {
+      "const": true
+     }
+    }
+   },
+   "description": "Visitors join from their phones: guests true"
   },
   {
    "if": {
@@ -897,7 +1109,8 @@
       "colour",
       "colours",
       "strokes",
-      "transforms"
+      "transforms",
+      "photo"
      ]
     }
    },
@@ -1358,6 +1571,42 @@
           "maxItems": 0
          }
         }
+       }
+      }
+     }
+    },
+    {
+     "if": {
+      "properties": {
+       "type": {
+        "const": "photo"
+       }
+      }
+     },
+     "then": {
+      "required": [
+       "aspect"
+      ],
+      "properties": {
+       "apply": {
+        "enum": [
+         "now",
+         "send"
+        ]
+       },
+       "resets": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "aspect": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]?:[1-9][0-9]?$",
+        "description": "The photo's shape, width:height (\"4:3\", \"1:1\", \"3:4\"): Lamba's crop screen uses it and never stretches"
+       },
+       "default": {
+        "const": ""
        }
       }
      }

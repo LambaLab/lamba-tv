@@ -6,25 +6,28 @@
 <title>Hello</title>
 <link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="../../shell/sdk/ui.css">
-<!-- Hello on a phone: a guest's page (view "guest", the whole screen) and the owner's controller (under the copy of the TV) -->
+<!--
+  Hello on a Player's phone (view "guest"): a remote with one big key, Wave. A press sends { type: "wave" }; the screen
+  waves back ({ type: "seen" }). The Host waves with the Wave tile in the drawer (lamba.json actions), not here. The Look group is marked "players": true in lamba.json, so each Player gets its picture tiles under this page.
+-->
 <style>
-body.guest { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.l-remote { --l-remote: #0f2a31; --l-remote-hi: #1f4c57; --l-key: #e6fbf4; --l-key-hi: #ffffff; --l-key-edge: #8fc6b8; --l-key-ink: #123c46; --l-me: #7fe0c4; }
 </style>
 </head>
 <body>
-<div class="l-col" style="align-items:center;padding:12px 0">
-  <button type="button" class="l-act l-main go" id="wave"><span class="l-i" style="font-size:38px">&#128075;</span><span class="l-l">Wave</span></button>
-  <p class="l-note" id="note" role="status">Tap to wave at the screen.</p>
-</div>
+<main class="l-remote">
+  <div class="l-remote-main"><div class="l-well"><button type="button" class="l-key l-big" id="wave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>Wave</button></div></div>
+  <p class="l-remote-foot" id="foot"></p>
+</main>
 <script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
 <script>
 (function () {
   "use strict";
   Lamba.ready(function (L) {
-    if (L.screen.view === "guest") document.body.className = "guest";
-    var note = document.getElementById("note"), me = L.me();
-    document.getElementById("wave").addEventListener("click", function () { L.send({ type: "wave" }); note.textContent = "Waving…"; });
-    L.on("seen", function () { note.textContent = "The screen waved back" + (me ? ", " + me.name : "") + "."; });
+    var $ = function (id) { return document.getElementById(id); }, n = 0;
+    LambaUI.press($("wave"), function () { L.send({ type: "wave" }); n++; });
+    L.on("seen", function () { $("foot").textContent = n === 1 ? "1 wave" : n + " waves"; });
   });
 })();
 </script>

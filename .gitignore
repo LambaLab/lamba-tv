@@ -1,5 +1,6 @@
 node_modules/
 lamba-test-shots/
 .env
+.lamba/
 *.zip
 .DS_Store

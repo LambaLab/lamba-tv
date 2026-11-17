@@ -1,0 +1,16 @@
+<!-- Lamba app card template. Copy it to my-app/card.svg and draw your app's picture.
+     320 x 180 (16:9). Lamba shows it on the start page, on a lit wall, and smaller in lists, so:
+       - fill the whole 320 x 180 with the picture (no empty strip at an edge);
+       - keep anything that matters 12 units in from every edge (the dashed guide, delete it);
+       - words big and few (font-size 20 or more), from fonts that are safe everywhere: no outside address, no Google Fonts link;
+       - it may move with CSS animation, and must stop under prefers-reduced-motion. Keep the file under 50 KB. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><style>
+.dot { animation: pulse 3s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+</style>
+  <rect width="320" height="180" fill="#123c46"/>
+  <text x="160" y="96" text-anchor="middle" font-family="Figtree, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="26" fill="#e6fbf4">My app</text>
+  <circle class="dot" cx="160" cy="120" r="4" fill="#e6fbf4"/>
+  <rect x="12" y="12" width="296" height="156" fill="none" stroke="#fff" stroke-opacity=".3" stroke-dasharray="3 3" stroke-width=".6"/>
+</svg>

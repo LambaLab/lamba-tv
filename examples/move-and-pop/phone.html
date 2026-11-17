@@ -7,49 +7,64 @@
 <link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="../../shell/sdk/ui.css">
 <!--
-  Move and pop on a phone: two ways to play, both through Lamba (never the browser's own sensors or camera).
+  Move and pop on the Player's phone (view "guest", the whole phone: a remote): two ways to play, chosen in the Control
+  setting of lamba.json (a tile in the Host's drawer, never buttons of this page), both through Lamba (never the browser's
+  own sensors or camera). One main action, a big key: Start (and Stop).
     Lamba.motion.start()  Lamba's own screen asks the person (an iPhone asks from a tap). Then tilt, swing and shake events.
     Lamba.track.start()   the phone asks "Use your camera?". Then frames of landmarks and gesture names, never the picture.
-  Both go to the TV as small messages, at most 20 a second, with Lamba.stream (straight over the Wi-Fi when the phone and TV can reach each other,
+  Both go to the screen as small messages, at most 20 a second, with Lamba.stream (straight over the Wi-Fi when the phone and screen can reach each other,
   through the room when not: this page does not know and does not care).
 -->
 <style>
-body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; padding: 16px 16px max(24px, env(safe-area-inset-bottom)); box-sizing: border-box; }
-.big { width: 100%; max-width: 380px; min-height: 64px; margin: 0 auto; border: 0; border-radius: 18px; background: var(--l-tile); color: var(--l-ink); font: 600 19px/1 inherit; cursor: pointer; touch-action: manipulation; }
-.big[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--l-ink) inset; }
-.say { margin: 4px 0 0; min-height: 1.4em; text-align: center; font-size: 17px; color: var(--l-sub); }
-.small { align-self: center; border: 0; background: none; color: var(--l-sub); font: 500 16px/1 inherit; min-height: 44px; cursor: pointer; }
+.l-remote { --l-remote: #101a2c; --l-remote-hi: #23395e; --l-key: #ffcf5c; --l-key-hi: #ffe39a; --l-key-edge: #b07d10; --l-key-ink: #2b1d05; --l-me: #ffcf5c; }
+.l-key.l-big[aria-pressed="true"] { --l-key: #ff8a7a; --l-key-hi: #ffb3a8; --l-key-edge: #a8402f; --l-key-ink: #2a0905; }
+.l-key .stop { display: none; } .l-key[aria-pressed="true"] .stop { display: block; } .l-key[aria-pressed="true"] .play { display: none; }
+/* the touch way, when motion is refused or missing: slide along the line to steer */
+.slide { position: relative; height: 56px; max-width: 380px; width: 100%; margin: 0 auto; border-radius: 28px; background: var(--l-track); touch-action: none; }
+.slide i { position: absolute; top: 4px; left: calc(50% - 24px); width: 48px; height: 48px; border-radius: 50%; background: var(--l-tile); pointer-events: none; }
+.small { align-self: center; border: 0; background: none; color: var(--l-sub); font: 600 16px/1 var(--l-font-ui); min-height: 44px; cursor: pointer; }
+.l-remote-foot { display: flex; flex-direction: column; gap: 6px; }
 </style>
 </head>
 <body>
-<button class="big" id="tilt" type="button" aria-pressed="false">Tilt to steer</button>
-<button class="big" id="wave" type="button" aria-pressed="false">Wave to pop</button>
-<button class="small" id="flip" type="button" hidden>Switch camera</button>
-<p class="say" id="say" role="status"></p>
+<main class="l-remote">
+  <header class="l-remote-top"><span class="l-remote-who" id="who">You</span><p class="l-remote-say" id="say" role="status"></p></header>
+  <div class="l-remote-main"><div class="l-well"><button class="l-key l-big" id="go" type="button" aria-pressed="false"><svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg><svg class="stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="currentColor"/></svg><span id="golabel">Start</span></button></div></div>
+  <div class="l-remote-foot"><div class="slide" id="slide" hidden><i id="knob"></i></div><button class="small" id="flip" type="button" hidden>Switch camera</button></div>
+</main>
 <script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
 <script>
 (function () {
   "use strict";
   Lamba.ready(function (L) {
     var say = function (t) { document.getElementById("say").textContent = t; };
-    var press = function (id, on) { document.getElementById(id).setAttribute("aria-pressed", on ? "true" : "false"); };
+    var press = function (id, on) { document.getElementById(id).setAttribute("aria-pressed", on ? "true" : "false"); if (id === "go") document.getElementById("golabel").textContent = on ? "Stop" : "Start"; };
+    var me = L.me(); document.getElementById("who").textContent = me ? me.name : "You";
     var steer = L.stream("steer", 20, "tv"), hand = L.stream("hand", 20, "tv"), session = null, off = [];
 
     // ---- tilt to steer ----
-    document.getElementById("tilt").onclick = function () {
+    function startTilt() {
       L.motion.start({ title: "Tip your phone to steer" }).then(function (state) {
-        if (state !== "on") { say(state === "finger" ? "Use the wave instead, or try again" : "This phone has no motion here"); return; }
-        stopWave(); press("tilt", true); say("Tip your phone");
+        if (state !== "on") { say("Slide along the line to steer"); showSlide(true); return; }
+        stopWave(); press("go", true); say("Tip your phone");
         off.push(L.motion.on("tilt", function (t) { steer({ x: t.x, y: t.y }); }));
         off.push(L.motion.on("shake", function () { L.send({ type: "again" }, "tv"); }));
       });
-    };
+    }
+
+    // ---- slide to steer (touch fallback) ----
+    var slide = document.getElementById("slide"), knob = document.getElementById("knob"), sliding = false;
+    function showSlide(on) { slide.hidden = !on; if (on) press("go", true); }
+    function slideTo(e) { var r = slide.getBoundingClientRect(), x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1)); knob.style.left = "calc(" + ((x + 1) * 50) + "% - 24px)"; steer({ x: x, y: 0 }); }
+    slide.onpointerdown = function (e) { sliding = true; slide.setPointerCapture(e.pointerId); slideTo(e); };
+    slide.onpointermove = function (e) { if (sliding) slideTo(e); };
+    slide.onpointerup = slide.onpointercancel = function () { sliding = false; };
 
     // ---- wave to pop ----
-    function stopWave() { if (session) { session.stop(); session = null; } hand.flush(); L.send({ type: "hand", gone: true }, "tv"); press("wave", false); }
-    function stopTilt() { off.splice(0).forEach(function (f) { f(); }); L.motion.stop(); press("tilt", false); steer({ x: 0, y: 0 }); }
-    document.getElementById("wave").onclick = function () {
-      if (session) { stopWave(); say(""); return; }
+    function stopWave() { if (session) { session.stop(); session = null; } hand.flush(); L.send({ type: "hand", gone: true }, "tv"); press("go", false); }
+    function stopTilt() { off.splice(0).forEach(function (f) { f(); }); L.motion.stop(); showSlide(false); knob.style.left = ""; press("go", false); steer({ x: 0, y: 0 }); }
+    function startWave() {
       stopTilt();
       session = L.track.start({ camera: "front", pose: true, hands: true, face: false, rate: 20, model: "auto" });   // "auto": the Tracking Lab's own light-to-full schedule
       session.on("frame", function (f) {
@@ -58,8 +73,15 @@ body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: col
         if (!p) { hand({ gone: true }); return; }
         hand({ x: f.mirror ? 1 - p.x : p.x, y: p.y });
       });
-      session.ready.then(function () { press("wave", true); say("Wave at the camera"); }, function (e) { session = null; say(/denied/.test(e.message) ? "The camera is off for this app" : "No camera here"); });
-    };
+      session.ready.then(function () { press("go", true); say("Wave at the camera"); }, function (e) { session = null; say(/denied/.test(e.message) ? "The camera is off for this app" : "No camera here"); });
+    }
+    // one main action: starts, or stops, the way chosen in the Control setting
+    // (LambaUI.press: the key goes down under the finger with a tap of the phone; an iPhone asks for motion from this tap)
+    LambaUI.press(document.getElementById("go"), function () {
+      var on = document.getElementById("go").getAttribute("aria-pressed") === "true";
+      if (on) { stopWave(); stopTilt(); say(""); return; }
+      if (L.settings.control === "wave") startWave(); else startTilt();
+    });
     // front and back, when this phone has both
     L.track.cameras().then(function (c) { if (c.kind === "flip") { var b = document.getElementById("flip"); b.hidden = false; b.onclick = function () { if (session) session.switchCamera(); }; } }, function () {});
   });

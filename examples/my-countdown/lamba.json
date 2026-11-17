@@ -101,6 +101,23 @@
  "remote": {
   "ok": true
  },
+ "actions": [
+  {
+   "key": "go",
+   "label": "Start",
+   "icon": "pictures/play.svg"
+  },
+  {
+   "key": "restart",
+   "label": "Restart",
+   "icon": "pictures/restart.svg"
+  },
+  {
+   "key": "add",
+   "label": "1 minute more",
+   "icon": "pictures/plus.svg"
+  }
+ ],
  "inside": {
   "by": "look",
   "pictures": {
@@ -233,7 +250,7 @@
   "groups": [
    {
     "key": "custom",
-    "label": "Custom time",
+    "label": "Time",
     "icon": {
      "icon": "pictures/clock.svg"
     },
@@ -241,7 +258,7 @@
     "parts": [
      {
       "app": "time",
-      "label": "Custom time"
+      "label": "Time"
      }
     ]
    },
@@ -296,5 +313,6 @@
     "host": "brightness"
    }
   ]
- }
+ },
+ "frame": "none"
 }

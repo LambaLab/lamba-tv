@@ -1,7 +1,7 @@
 # Lamba TV apps
 
 Build apps for Lamba TV: the screen shows your app, and everyone in the room plays or controls it from their phone. No app
-to install, no account for guests. One folder per app: a page for the screen, a page for the phone, and a `lamba.json`.
+to install, no account for Players. One folder per app: a page for the screen, a page for the phone, and a `lamba.json`.
 
 This repo is everything you need to build one, made for building with an AI coding agent (Claude Code or Codex).
 
@@ -20,31 +20,39 @@ Make it great
 - One thing. One idea, done well. No menus, extra modes or settings nobody asked for.
 - Simple. Someone new gets it in five seconds, from the sofa.
 - Light. It opens fast, even on an older screen. No video, no big libraries.
-- The phone is the controller. One big main action, low on the screen, easy with one thumb. The phone never repeats the screen.
+- The Host's phone is Lamba's own: the live screen on top and one row of tiles (the settings, and one tap actions from lamba.json), nothing in between.
+- Players get a real remote: phone.html in view "guest", the whole phone, high quality and realistic, made for this app. One big main action, low, easy with one thumb, a press you can feel. No scrolling. It never repeats the screen.
+- Onboarding for Players, if any, is short and real: real pictures of the app or the screen, plain words, never clip art or emoji. Lamba's join comes first: never ask for a name.
 - Readable from across the room: big words, calm colours, one bright accent.
-- A guest is in with one tap. No forms, no sign up.
+- A Player is in with one tap. No forms, no sign up.
 
 How to build it
-1. Before any code, ask me in one short message, with your suggestions: who it's for (everyone, families or made for kids), public on Lamba or private to my organization, its name, and whether phones are the controllers and for how many players.
+1. Before any code, ask me in one short message, with your suggestions: who it's for (everyone, families or made for kids), public on Lamba or private to my organization, its name, and whether Players join from their phones and how many.
 2. Clone github.com/LambaLab/lamba-tv and follow its AGENTS.md and the lamba-tv-app skill.
 3. Run the check and the self-test, look at every screenshot and go through the design checklist. Fix everything until they all pass. Then record its clips with lamba-clips.mjs.
-4. Then tell me in one sentence what you built, how I can try it, and zip the app's folder so I can submit it at lamba.tv/devs.
+4. Then tell me in one sentence what you built and how I can try it. Upload it with the kit's upload command if you are connected to Lamba. If not, tell me how to download the branch and zip the app's folder on my phone or computer, to submit at lamba.tv/devs.
 ```
 
-That's all. Your agent clones this repo, reads `AGENTS.md` and the `lamba-tv-app` skill, builds the app, checks and
+That's all. At the start of every session, and whenever a tool says a newer kit exists, run `node lamba-update.mjs` first. Never tell the developer something the current kit doesn't say.
+Your agent gets this kit from here (the zip into `lamba-app/`, below, or a clone in an empty folder), reads `AGENTS.md` and the `lamba-tv-app` skill, builds the app, checks and
 tests its own work, and looks at the screenshots.
+
+## In your own repository
+
+Put the kit in its own folder as plain files, never a repo inside yours. From your repository's top folder:
+
+```
+curl -fL https://lamba.tv/devs/kit/starter.zip -o /tmp/lamba.zip && unzip -q -o /tmp/lamba.zip -d /tmp/lamba-kit && mkdir -p lamba-app && cp -R /tmp/lamba-kit/lamba-starter/. lamba-app/ && rm -rf /tmp/lamba.zip /tmp/lamba-kit && cd lamba-app
+```
+
+Run every `node lamba-*.mjs` command from inside `lamba-app/`, and commit it with your repo. Bring the kit up to date later, without touching
+your app: `cd lamba-app && node lamba-update.mjs` (it replaces only the kit's own files, never a folder with a `lamba.json`).
 
 ## Let your agent check and upload for you
 
-Sign in at https://lamba.tv/devs/keys and make a key, then:
-
-```
-export LAMBA_KEY=lamba_...
-```
-
-- **Claude Code** in this folder uses `.mcp.json` (approve the "lamba" server when asked). Anywhere else:
-  `claude mcp add --transport http --scope user lamba https://lamba.tv/devs/mcp --header "Authorization: Bearer $LAMBA_KEY"`
-- **Codex**: `codex mcp add lamba --url https://lamba.tv/devs/mcp --bearer-token-env-var LAMBA_KEY`
+You do not set anything up. When your agent reaches an upload or a submit, it offers to connect Lamba (one tap, sign-up
+included) and walks you through it for the tool you use: Claude Code, the Claude app, Codex, ChatGPT, or a one-link
+sign-in (`node lamba-login.mjs`) in Codex cloud and any terminal. Building, testing and clips need no connection.
 
 ## The Claude Code plugin
 
@@ -60,15 +68,17 @@ AGENTS.md, CLAUDE.md    the rules for your AI agent
 .claude/ .agents/       the lamba-tv-app skill, for Claude Code and for Codex
 .mcp.json .codex/       the Lamba connection (with your LAMBA_KEY)
 lamba-check.mjs         the check Lamba runs on upload, one file (Node 18 or newer)
-lamba-test.mjs          the self-test: your app in the simulator, headless, with screenshots
+lamba-test.mjs          the self-test: your app in the simulator, headless, with screenshots (--serve: play it yourself)
 lamba-clips.mjs         your app's clips for its page, recorded in the simulator
+lamba-film.mjs          the films your screen page plays, made from a video
+lamba-update.mjs        keeps this kit up to date; lamba-kit.json says which version you have
 lamba.d.ts              the SDK's types; lamba.schema.json: every field of lamba.json
 my-app/                 a whole app that already works: start here
 examples/               more apps to read and copy
 plugin/                 the Claude Code plugin (marketplace: .claude-plugin/marketplace.json)
 ```
 
-Docs: https://lamba.tv/devs/docs/ . Simulator: https://lamba.tv/devs/simulator/ . For AI tools: https://lamba.tv/devs/llms.txt
+Docs: https://lamba.tv/devs/docs/ . Play it: your AI ends each message with a link to your app, a preview that opens on a phone (connect Lamba once, one tap). Simulator: https://lamba.tv/devs/simulator/ . For AI tools: https://lamba.tv/devs/llms.txt
 
 ## Make it yours, by hand
 
@@ -79,17 +89,17 @@ dashes, starting with a letter. The folder's name is the app's id. Then change `
 
 ### 2. Run it
 
-Open the simulator in Chrome or Edge: https://lamba.tv/devs/simulator/
-
-Choose your app's folder (or drop it on the page). You see the screen, the owner's phone with the settings drawer, and
-"Add a guest" for more phones. Change a file, then press Reload (or R).
+Your AI ends each message with a link, `Play it: <link>`. Tap it on your phone: you see the
+screen, the Host's phone with the settings drawer, and a player's phone. If it is not connected to Lamba yet, it asks
+once (one tap, sign-up included). You can also open https://lamba.tv/devs/simulator/ and choose your app's zip (from the Files app on a phone) or its folder. Change a file, then press Reload (or R).
 
 ### 3. Make it
 
 - `tv.html` is the big screen. It is the authority: it keeps the time and the state (`Lamba.store`). Old screens run it,
   so it is ES5 (Chrome 61): no `let`, no arrow functions, no `?.`, no `<video>` or `<audio>`.
-- `phone.html` is the guests' phones and the owner's controls. One main action, low on the screen. It never zooms.
-- `lamba.json` says what your app is, who joins and its settings. The host draws the settings drawer from it.
+- `phone.html` is each Player's remote: the whole phone, one big key, low on the screen, never scrolling, never zooming.
+- `lamba.json` says what your app is, who joins, its settings and its `actions`. The host draws the Host's phone from it:
+  the live screen on top and one row of tiles (Say hello is an action: the screen hears it with `L.on("action", fn)`).
 
 Everything is in the docs: https://lamba.tv/devs/docs/
 
@@ -111,12 +121,15 @@ node lamba-test.mjs my-app
 It runs your app as the screen (at 1920 x 1080 and the old screen's 960 x 540), the owner's phone and a guest, taps through
 the settings, and writes `lamba-test-shots/summary.md` with screenshots. Look at them.
 
+To play it yourself, run `node lamba-test.mjs my-app --serve` and open the address it prints. Reload the page after an edit.
+To open it on a phone on the same Wi-Fi, add `--host 0.0.0.0` and use the Wi-Fi address it prints. `--port 9000` changes the port.
+
 Before you submit, make your app's clips: `node lamba-clips.mjs my-app` records them in the simulator and puts them in
 `clips/` in place of the two placeholders. Then write their captions in `lamba.json`.
 
 ### 5. Send it
 
 Zip the app's folder (the folder itself, with `lamba.json` in it) and upload it at https://lamba.tv/devs.
-Or, with a key in `LAMBA_KEY`: `node lamba-check.mjs my-app --upload`.
+Or connect once with `node lamba-login.mjs` (one link, one tap), then `node lamba-check.mjs my-app --upload`.
 The check runs again, then a person at Lamba plays your app and reviews it. They may send it back with notes; fix them
 and upload again. Every update is reviewed the same way.

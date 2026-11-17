@@ -10,11 +10,13 @@ https://lamba.tv/devs/docs/design/.
 
 - [ ] My app does one thing.
 - [ ] Words on the screen read from across the room.
-- [ ] Each phone has one big main action, low on the screen.
-- [ ] The screen shows the game. Phones are the controllers, not a copy of the screen.
+- [ ] Each Player's remote has one big main action, low on the screen.
+- [ ] The Host's phone is the live screen and one row of tiles (settings and actions), nothing in between.
+- [ ] Players get a full screen, realistic remote that never scrolls; no clip art, no emoji, no name step of its own.
+- [ ] The screen shows the game. Phones are the controls, not a copy of the screen.
 - [ ] The join card fills the screen while it waits, then moves to a corner.
 - [ ] Calm colours, strong contrast.
-- [ ] A guest is in with one tap: no forms, no accounts.
+- [ ] A Player is in with one tap: no forms, no accounts.
 - [ ] It runs on old screens, and the phone page never zooms.
 
 ## The check (automatic, refuses the upload)
@@ -33,7 +35,7 @@ https://lamba.tv/devs/docs/design/.
 - [ ] summary.md says nothing to fix: no page errors, no problems logged, nothing refused by the room.
 - [ ] The screen page calls `Lamba.drawn()` and is faded in.
 - [ ] Every settings choice reaches the screen and changes what it shows (look at the settings screenshots).
-- [ ] A guest's tap reaches the screen and the screen answers.
+- [ ] A Player's tap reaches the screen and the screen answers.
 
 ## By eye (look at the screenshots)
 
@@ -44,7 +46,7 @@ https://lamba.tv/devs/docs/design/.
 - [ ] Calm when nothing happens; motion stops under `prefers-reduced-motion`.
 - [ ] The screen page still reads when it is smaller (a second app beside or under it) and lays out again on `Lamba.onScreen`.
 - [ ] Settings: the look waits for Send to screen; only who may join, for how long and the sound are `"apply": "now"`;
-  a choice for nothing is named "None" with no picture; no tiles of your own for guests, scribbles or effects.
+  a choice for nothing is named "None" with no picture; no tiles of your own for Players, scribbles or effects.
 - [ ] The words: plain, sentence case, "they" for one person, buttons say what they do, as few as possible.
 
 ## Safe for the room
@@ -53,4 +55,4 @@ https://lamba.tv/devs/docs/design/.
 - [ ] Each permission (`sound`, `camera`, `motion`, `country`) is needed; a camera app says on the screen and the phone when it is on.
 - [ ] Each `outside` address is needed, and you can say why.
 - [ ] Never asks who someone is (age, address, phone, a photo of a face): `Lamba.me()` has their name.
-- [ ] Animal sets include a sloth; colour lists end with "pick your own colour"; choosing a sound plays a sample.
+- [ ] Animal sets include a sloth; colour lists end with "pick your own colour"; choosing a sound in your own app part (phone.html) plays a sample.

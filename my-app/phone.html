@@ -9,40 +9,37 @@
 <!-- Lamba's UI parts, so your app looks like every Lamba app (docs: Lamba UI parts) -->
 <link rel="stylesheet" href="../../shell/sdk/ui.css">
 <!--
-  My app on a phone (lamba.json screens.phone). One page, three views (Lamba.screen.view):
-    "guest"       a guest's phone, the whole screen
-    "controller"  the owner's controls, under the copy of the TV (its height follows its content)
-    "part"        a part of the settings drawer you draw yourself (lamba.json { "app": "<part>" }), not used here
-  Keep one main action, big, where the thumb rests (low on the screen). Phones send commands; the TV decides.
+  My app on a Player's phone (lamba.json screens.phone, view "guest"): the Player's remote, the whole phone. Lamba's join
+  (the code on the screen, their name when lamba.json has "askName": true) comes first; this page opens after it, so never ask for a name: Lamba.me().name.
+  The settings marked "players": true in lamba.json (Look, Names) and Lamba's own controls it lists in forPlayers (Sound,
+  Brightness, Frame) are not drawn here: Lamba puts the same drawer of picture tiles under this page for each Player, as far as the Host allows. Keep this page for the main action, with no status line or
+  icon at the top.
+  A real remote: one big key for the main action, low where the thumb rests, a press you can feel (LambaUI.press), no
+  scrolling, your app's own colours. The Host never sees this page: the Host's phone is the live screen and one row of
+  tiles (settings, and lamba.json actions such as Say hello).
+  Views (Lamba.screen.view): "guest" here; "part" is a part of the settings drawer you draw yourself (lamba.json
+  { "app": "<part>" }), not used here. Phones send commands; the screen decides.
 -->
 <style>
-body.guest { min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 16px 12vh; box-sizing: border-box; }
-.hello { margin: 0 0 auto; padding-top: 14vh; text-align: center; font-size: 28px; font-weight: 700; }
+/* the remote's colours: its body, its key, the key's side and its word, your dot */
+.l-remote { --l-remote: #0f2a31; --l-remote-hi: #1f4c57; --l-key: #e6fbf4; --l-key-hi: #ffffff; --l-key-edge: #8fc6b8; --l-key-ink: #123c46; --l-me: #7fe0c4; }
 </style>
 </head>
 <body>
-<p class="hello" id="hello" hidden></p>
-<div class="l-col" style="align-items:center;padding:12px 0">
-  <button type="button" class="l-act l-main go" id="tap"><span class="l-i" style="font-size:34px">&#128075;</span><span class="l-l">Say hello</span></button>
-  <p class="l-note" id="note" role="status">Tap to say hello on the screen.</p>
-</div>
+<main class="l-remote">
+  <div class="l-remote-main"><div class="l-well"><button type="button" class="l-key l-big" id="tap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>Say hello</button></div></div>
+  <p class="l-remote-foot" id="foot"></p>
+</main>
 <script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
 <script>
 (function () {
   "use strict";
   Lamba.ready(function (L) {
-    var note = document.getElementById("note"), me = L.me();   // me: { name } the person chose, or null
-    if (L.screen.view === "guest") {
-      document.body.className = "guest";
-      var hi = document.getElementById("hello"); hi.hidden = false; hi.textContent = me ? "Hi " + me.name : "Hi";
-    }
-    document.getElementById("tap").addEventListener("click", function () {
-      // The owner's phone: if the app is not on the TV yet, put it there first
-      if (L.screen.view === "controller" && !L.status.onScreen) { L.show(); return; }
-      L.send({ type: "tap" });
-      note.textContent = "Sent.";
-    });
-    L.on("seen", function () { note.textContent = "The screen said hello back" + (me ? ", " + me.name : "") + "."; });
+    var $ = function (id) { return document.getElementById(id); };
+    // LambaUI.press: the key goes down under the finger with a tap of the phone, and sends as the finger lifts
+    LambaUI.press($("tap"), function () { L.send({ type: "tap" }); });
+    L.on("seen", function () { $("foot").textContent = "The screen said hello back"; });
   });
 })();
 </script>

@@ -6,17 +6,17 @@
 <title>Move and pop</title>
 <link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@500;700&display=swap">
 <!--
-  Move and pop, the TV page: a ball and bubbles, moved by a phone's tilt or popped by a hand the phone's camera sees.
+  Move and pop, the screen page: a ball and bubbles, moved by a phone's tilt or popped by a hand the phone's camera sees.
 
   How it works:
-    - The phone (phone.html) keeps the sensors: Lamba.motion gives it tilt, Lamba.track gives it a body and hands. It sends the TV
+    - The phone (phone.html) keeps the sensors: Lamba.motion gives it tilt, Lamba.track gives it a body and hands. It sends the screen
       SMALL messages, a few times a second, through Lamba.stream (never every camera frame):
         { type: "steer", x, y }   tilt, -1 to 1 (y down): the ball speeds up that way
         { type: "hand", x, y }    where the hand is, 0 to 1 across the screen (left to right as the person sees it)
         { type: "hand", gone: true }
         { type: "again" }         a shake: new bubbles
-    - The TV does the game: it moves the ball, pops bubbles and keeps the score. The camera picture never leaves the phone.
-  Old TV browsers (Chrome 61): ES5 only, no flex gap, no clamp().
+    - The screen does the game: it moves the ball, pops bubbles and keeps the score. The camera picture never leaves the phone.
+  Old screen browsers (Chrome 61): ES5 only, no flex gap, no clamp().
 -->
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; background: var(--bg, #0f2f3f); }

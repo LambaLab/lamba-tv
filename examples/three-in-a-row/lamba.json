@@ -50,11 +50,19 @@
   "max": 2
  },
  "guests": true,
+ "askName": true,
  "age": "all",
  "permissions": [
   "sound"
  ],
  "outside": [],
+ "actions": [
+  {
+   "key": "new",
+   "label": "New game",
+   "icon": "pictures/new.svg"
+  }
+ ],
  "settings": {
   "fields": {
    "look": {
@@ -78,7 +86,6 @@
    "first": {
     "type": "choice",
     "default": "turns",
-    "apply": "now",
     "choices": [
      {
       "id": "turns",
@@ -120,6 +127,9 @@
    {
     "key": "rules",
     "label": "Who starts",
+    "icon": {
+     "icon": "pictures/rules.svg"
+    },
     "parts": [
      {
       "setting": "first",
@@ -131,5 +141,6 @@
     "host": "brightness"
    }
   ]
- }
+ },
+ "frame": "none"
 }

@@ -4,7 +4,7 @@
  "id": "hello",
  "name": "Hello",
  "sub": "The smallest SDK app",
- "about": "Guests wave from their phones and the screen waves back",
+ "about": "Players wave from their phones and the screen waves back",
  "icon": "icon.svg",
  "tint": "#2a6f8f",
  "screens": {
@@ -16,9 +16,30 @@
   "max": 4
  },
  "guests": true,
+ "askName": true,
+ "music": true,
+ "forPlayers": [
+  "sound",
+  "brightness",
+  "frame",
+  "effects",
+  "schedule",
+  "music"
+ ],
+ "visitors": {
+  "max": 20,
+  "perMinute": 30
+ },
  "age": "all",
  "permissions": [],
  "outside": [],
+ "actions": [
+  {
+   "key": "wave",
+   "label": "Wave",
+   "icon": "pictures/wave.svg"
+  }
+ ],
  "settings": {
   "fields": {
    "bg": {
@@ -57,7 +78,6 @@
    "names": {
     "type": "switch",
     "default": true,
-    "apply": "now",
     "on": {
      "name": "Show names",
      "sub": "Each wave with who sent it",
@@ -78,6 +98,10 @@
    {
     "key": "look",
     "label": "Look",
+    "icon": {
+     "icon": "pictures/look.svg"
+    },
+    "players": true,
     "parts": [
      {
       "setting": "bg",
@@ -94,6 +118,9 @@
    {
     "key": "names",
     "label": "Names",
+    "icon": {
+     "icon": "pictures/names.svg"
+    },
     "parts": [
      {
       "setting": "names",
@@ -106,6 +133,7 @@
    }
   ]
  },
+ "frame": "none",
  "clips": [
   [
    "hello-tv",

@@ -11,11 +11,13 @@
   from Lamba.app). Three views (Lamba.screen.view):
     screen   the TV: it keeps the time. What runs is kept in Lamba.store "run" ({ ...run, now, snd }: now is the TV's clock
              when it wrote it, snd whether the TV may play sound), so the phones follow it and a reload loses nothing.
-             The phones send { type: "cmd", c: { id, op, ... } }; the TV applies each command once (run.done), on its own
-             clock. Ops: stopwatch toggle start pause lap reset; countdown start { ms } toggle pause resume add restart stop;
-             both: sync (write again). The remote's OK button starts and pauses, and stops a finished countdown.
-    preview  the phone's copy: follows "run" (the clock difference learned from each fresh write), and moves at once
-             with the owner's own commands (the host passes them here too).
+             The Host's action tiles (lamba.json actions) come as { type: "action", key }: stopwatch go (start, pause,
+             resume), lap, reset; countdown go (start, pause, resume, stop), restart, add (a minute more). The Time part
+             of the countdown's settings sends { type: "cmd", c: { id, op: "start", ms } }; the TV applies each command
+             once (run.done), on its own clock. The remote's OK button starts and pauses, and stops a finished countdown.
+    preview  the phone's copy: follows "run" (the clock difference learned from each fresh write), moves at once with
+             the Host's own taps (the host passes them here too), and says what the action tiles say now (Lamba.action:
+             Start becomes Pause) and what the Time or Display tile says (Lamba.describe).
     picture  a small still picture for the settings (Lamba.screen.picture: which setting and choice).
   Old TV browsers (Chrome 61): ES5, no ?. or ??, no flex gap.
 -->
@@ -62,7 +64,22 @@
       if (playing) playing.stop(); playing = null; playKey = want;
       if (want) { T.Sound.wake(); playing = T.Sound.play(S.tone, { vol: .7, gap: 1.6 }); }
     };
-    var redraw = function () { face.state(run); face.go(); sound(); };
+    // the Host's tiles say what a tap does now (read from this copy on the Host's phone; the real screen needn't)
+    var tiles = function () {
+      if (screen) return;
+      if (APP === "stopwatch") {
+        var e = RUN.el(run, Date.now() + off);
+        L.action("go", { label: run.on ? "Pause" : e > 0 ? "Resume" : "Start", icon: run.on ? "pictures/pause.svg" : "pictures/play.svg" });
+        L.action("lap", { off: !run.on }); L.action("reset", { off: !run.on && e === 0 });
+        L.describe("show", (S.hund ? "Hundredths" : "Seconds") + (S.laps ? ", laps" : ""));
+      } else {
+        var st = run.st;
+        L.action("go", { label: st === "run" ? "Pause" : st === "pause" ? "Resume" : st === "done" ? "Stop" : "Start", icon: st === "run" ? "pictures/pause.svg" : st === "done" ? "pictures/stop.svg" : "pictures/play.svg" });
+        L.action("restart", { off: st === "idle" });
+        L.describe("custom", T.fmtCD(run.dur));
+      }
+    };
+    var redraw = function () { face.state(run); face.go(); sound(); tiles(); };
     var act = function (c) { run = RUN.act(run, c, Date.now() + off); run.done = c.id ? String(c.id).slice(0, 40) : run.done; redraw(); report(); };
     L.onSettings(function (s) { S = T.clean(s); face.set(S); redraw(); tell(); });
     // a phone's command (the TV applies it once; the preview moves ahead of the TV with the owner's own)
@@ -70,6 +87,13 @@
       var c = m && m.c; if (!c || typeof c !== "object" || typeof c.id !== "string" || !c.id || c.id === run.done) return;
       if (c.op === "sync") { if (screen) report(); return; }
       if (screen || fresh) act(c);
+    });
+    // the Host's action tiles (lamba.json actions); the copy on the Host's phone hears them too, and moves at once
+    L.on("action", function (m) {
+      var op = m.key === "go" ? (APP === "countdown" && run.st === "done" ? "stop" : "toggle") : m.key;
+      if (["toggle", "stop", "lap", "reset", "restart", "add"].indexOf(op) < 0) return;
+      if (screen) T.Sound.wake();
+      if (screen || fresh) act({ id: T.rid(), op: op });
     });
     // the TV's own writes reach the preview: what runs, and the difference between the clocks
     L.store.on(function (k, v) {

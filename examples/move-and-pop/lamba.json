@@ -22,7 +22,7 @@
   ],
   [
    "move-and-pop-settings",
-   "Choose the look, the TV changes"
+   "Choose the look, the screen changes"
   ]
  ],
  "page": {
@@ -54,6 +54,7 @@
   "max": 1
  },
  "guests": true,
+ "askName": true,
  "age": "all",
  "category": "party",
  "permissions": [
@@ -63,6 +64,28 @@
  "outside": [],
  "settings": {
   "fields": {
+   "control": {
+    "type": "choice",
+    "default": "tilt",
+    "choices": [
+     {
+      "id": "tilt",
+      "name": "Tilt",
+      "sub": "Tip the phone to steer",
+      "picture": {
+       "text": "Tilt"
+      }
+     },
+     {
+      "id": "wave",
+      "name": "Wave",
+      "sub": "Wave at the camera to pop",
+      "picture": {
+       "text": "Wave"
+      }
+     }
+    ]
+   },
    "look": {
     "type": "choice",
     "default": "sea",
@@ -84,6 +107,19 @@
   },
   "groups": [
    {
+    "key": "control",
+    "label": "Control",
+    "icon": {
+     "icon": "pictures/control.svg"
+    },
+    "parts": [
+     {
+      "setting": "control",
+      "label": "Control"
+     }
+    ]
+   },
+   {
     "key": "look",
     "label": "Look",
     "icon": "live",
@@ -104,5 +140,6 @@
     "host": "brightness"
    }
   ]
- }
+ },
+ "frame": "none"
 }

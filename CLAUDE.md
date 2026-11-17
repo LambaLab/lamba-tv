@@ -4,7 +4,6 @@
 
 - The `lamba-tv-app` skill (`.claude/skills/lamba-tv-app/`) has the patterns for screen pages, phone pages, settings and
   review. Use it for any work on the app.
-- The Lamba MCP server is set up in `.mcp.json` as `lamba`, with the key from the `LAMBA_KEY` environment variable.
-  If its tools are missing, ask the developer to make a key at https://lamba.tv/devs/keys and start Claude Code with
-  `LAMBA_KEY` set, or to run the `claude mcp add` command on https://lamba.tv/devs/docs/ai/. Never ask them to paste
-  the key into the chat.
+- Connecting Lamba: follow "Connect Lamba, you lead" in AGENTS.md. You lead: offer it when a step needs it, run
+  `claude mcp add --transport http lamba-tv https://lamba.tv/devs/mcp` yourself, and ask the developer to type `/mcp` and
+  tap Allow. Never ask them to paste a key into the chat.
