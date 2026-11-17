@@ -7115,7 +7115,7 @@ async function send(dir, bytes) {
   console.log("  its page: " + d.page);
   return d.state === "ready";
 }
-// --preview: a private link to play the app (simulator, on a phone too), no version made, 7 days
+// --preview: a private link to play the app (simulator, on a phone too), no version made, 15 days
 async function preview(dir, bytes) {
   const base = lambaBase(), key = lambaKey(dir);
   if (!key) { console.log("  no link yet: " + NOT_CONNECTED); return false; }

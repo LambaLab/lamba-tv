@@ -182,8 +182,10 @@ After every build or change that passes the check, end your message with a click
 
 - **Connected:** the link is the preview link: `lamba_preview`, or `node lamba-check.mjs <app> --preview`. Tap it on a phone
   (Safari or Chrome): the screen is on top, and the host's phone and a player's phone switch with tabs. Anyone with the
-  link can play, so the developer can send it to a friend. It lasts 7 days, the next preview of the app replaces it, and
+  link can play, so the developer can send it to a friend. It lasts 15 days, the next preview of the app replaces it, and
   it is not a version: nothing is submitted. "Try on my screen" is on that page for the developer.
+  Each preview is also saved as a Draft on lamba.tv/devs (under Your apps, the newest of each app, 15 days), so the developer can
+  open it from there without hunting for the link. Tell them so once: "It is in your Drafts on lamba.tv/devs."
 - **Not connected yet:** say once, in plain words: "To get a link you can open on your phone, connect Lamba (one tap)."
   Then run "Connect Lamba" below, and post the link.
 - On a machine with a browser you may also offer `node lamba-test.mjs <app> --serve`. Never make "open the simulator
