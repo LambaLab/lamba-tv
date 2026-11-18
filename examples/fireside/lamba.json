@@ -53,6 +53,14 @@
  "permissions": [],
  "outside": [],
  "frame": "none",
+ "products": [
+  {
+   "id": "blue-glow",
+   "name": "Blue glow",
+   "price": 99,
+   "description": "A cool blue fire for calm evenings"
+  }
+ ],
  "actions": [
   {
    "key": "log",
@@ -76,6 +84,12 @@
       "id": "embers",
       "name": "Embers",
       "sub": "Low and calm",
+      "picture": "live"
+     },
+     {
+      "id": "glow",
+      "name": "Blue glow",
+      "sub": "An unlock, from Extras",
       "picture": "live"
      }
     ]

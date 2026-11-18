@@ -6030,10 +6030,18 @@ const CHOICE = /^[A-Za-z0-9_-]{0,40}$/;                   // a choice's id when 
 const HEX = /^#[0-9a-f]{6}$/i;
 const AVOID = new RegExp("\\b" + ["r", "a", "i", "n", "b", "o", "w"].join("") + "\\b", "i");   // the one word Lamba never uses (spelled out nowhere)
 const DASH = /[\u2013\u2014]/;                            // en and em dashes: never in words people read
+// an app's name as the portal sets it (lamba.tv/devs, Rename): the same rules as lamba.json name, in plain words. "" when it is fine
+const NAME_MAX = 24;
+const nameProblem = v => typeof v !== "string" || !v.trim() ? "Give it a name."
+  : v.trim().length > NAME_MAX ? NAME_MAX + " characters at most."
+  : /[\u0000-\u001f\u007f<>]/.test(v) ? "Use letters, digits and plain punctuation."
+  : DASH.test(v) ? "No en or em dash: use a comma or rewrite it."
+  : /(?![\u00a9\u00ae\u2122\u2194-\u2199\u21a9\u21aa])\p{Extended_Pictographic}|\u{FE0F}/u.test(v) ? "No emoji: words only."
+  : AVOID.test(v) ? "That word isn't used on Lamba." : "";
 // what the host keeps for itself in every app's settings (the frame round the app, and its brightness)
 const HOST_KEYS = ["frame", "frc", "fw", "mw", "matc", "fday", "fown", "fall", "bright", "pc"];   // pc: the Host lets Players change the settings of the groups marked "players": true
 const TYPES = ["choice", "switch", "number", "text", "list", "colour", "colours", "strokes", "transforms", "photo"];
-const PERMISSIONS = ["sound", "camera", "motion", "country"];
+const PERMISSIONS = ["sound", "camera", "motion", "country", "microphone", "video"];   // camera: the picture never leaves the phone; video: a live picture shown on the screen (Lamba.video.live)
 const AGES = ["all", "7+", "13+"];
 // the app's shelf on the phone and the showcase (optional for now; the listing on /devs asks for it)
 const CATEGORIES = ["games", "party", "kids", "learning", "art", "music", "clocks", "calm", "photos", "sports", "tools"];
@@ -6122,6 +6130,7 @@ function checkRules(m, dir) {
   if (!Array.isArray(m.permissions) || m.permissions.some(p => !PERMISSIONS.includes(p))) say("permissions must be a list of " + PERMISSIONS.join(", "));
   if (!Array.isArray(m.outside)) say("outside must be a list of https addresses (empty for none)");
   else m.outside.forEach(o => { if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(o || "")) say("outside: " + o + " must be https://host (no path)"); });
+  if (m.split !== undefined && m.split !== "tall" && m.split !== "letterbox") say("split must be \"tall\" (the screen page gets a half's own tall shape in a split screen and reads Lamba.layout) or \"letterbox\" (the default: the whole 16:9 page scaled into the half)");
   if (m.frame !== undefined && m.frame !== "none") say("frame must be \"none\" (the app starts without a frame; the Host can still pick one)");
   for (const k of ["stagingOnly", "notInDemo", "listed", "liveCard", "music"]) if (m[k] !== undefined && typeof m[k] !== "boolean") say(k + " must be true or false");
   if (m.position !== undefined && !(m.position && typeof m.position.after === "string" && ID.test(m.position.after))) say("position must be { after: <an app id> }");
@@ -6140,7 +6149,97 @@ function checkRules(m, dir) {
     else say("inside must be a picture file or { by: <setting>, pictures: { choice: file } }");
   }
   checkSettings(m, dir, say, str, file);
+  checkMoney(m, say, str);
   return P;
+}
+
+// ---- Money (docs/sdk/MONETIZE.md): a paid app, a subscription and in-app unlocks. Building stays free; Lamba sells for the
+// developer with its own payment sheet on the Host's phone and keeps FEE_BPS (15%, an admin may change it per app). Prices are
+// whole US cents from Lamba's tiers only, so every price reads the same everywhere ("$2.99", "$1.99/month"). The Host buys
+// for their household: every screen and co-Host of the account uses what it bought. Players never buy, and never in a kids app.
+//   "price": 299                                              buy the app once
+//   "subscription": { "monthly": 199, "yearly": 1999, "trialDays": 7 }   or subscribe (one or both plans; a free trial is optional)
+//   "products": [{ "id": "winter", "name": "Winter looks", "price": 99, "description": "Four snowy scenes", "trialDays": 3 }]   unlocks, bought once (an optional free try)
+//   "preview": { "mode": "free" | "time" | "locked", "minutes": 10 }      what a paid app does before it is bought
+const PRICE_TIERS = {
+  once: [99, 199, 299, 399, 499, 699, 999, 1499, 1999, 2999, 4999],
+  monthly: [99, 199, 299, 399, 499, 699, 999, 1499],
+  yearly: [999, 1499, 1999, 2999, 3999, 4999, 6999, 9999],
+  unlock: [99, 199, 299, 399, 499, 699, 999, 1499, 1999]
+};
+const TRIAL_MAX = 90, PRODUCT_TRIAL_MAX = 30;   // a free trial: any whole number of days up to these (an admin may cap or force it)
+const PREVIEW_MODES = ["free", "time", "locked"];
+const PRODUCTS_MAX = 20, FEE_BPS = 1500, GRACE_DAYS = 7;
+// the hosts Lamba refuses in outside, and in any page: other ways to take money (Lamba sells for every app)
+const PAY_HOSTS = /(^|\.)(stripe\.com|stripe\.network|paypal\.com|paypal\.me|paypalobjects\.com|braintreegateway\.com|braintree-api\.com|squareup\.com|square\.site|adyen\.com|checkout\.com|gumroad\.com|lemonsqueezy\.com|paddle\.com|paddle\.net|ko-fi\.com|patreon\.com|buymeacoffee\.com|razorpay\.com|2checkout\.com|chargebee\.com|recurly\.com|payoneer\.com|venmo\.com|cash\.app|revolut\.me|wise\.com|klarna\.com|afterpay\.com|coinbase\.com|opennode\.com)$/i;
+const paidOf = m => !!m && (m.price !== undefined || m.subscription !== undefined || (Array.isArray(m.products) && m.products.length > 0));
+const kidsOf = m => !!m && (m.category === "kids" || (Array.isArray(m.categories) && m.categories.includes("kids")));
+// $2.99, $19.99, $0.99 (US dollars, from whole cents)
+const money = c => "$" + (Math.floor(c / 100)) + "." + String(c % 100).padStart(2, "0");
+// Lamba's share and the developer's, in whole cents: the fee rounds to the nearest cent, the developer gets the rest
+const split = (cents, bps) => { const b = Number.isInteger(bps) && bps >= 0 && bps <= 10000 ? bps : FEE_BPS, fee = Math.round(cents * b / 10000); return { fee, dev: cents - fee, bps: b }; };
+// the prices a version declares, in one shape (the server keeps the approved ones as an app's "pay"): null for a free app
+function payOf(m) {
+  if (!paidOf(m)) return null;
+  const s = m.subscription || null, out = { price: Number.isInteger(m.price) ? m.price : 0, monthly: s && Number.isInteger(s.monthly) ? s.monthly : 0, yearly: s && Number.isInteger(s.yearly) ? s.yearly : 0,
+    trialDays: s && Number.isInteger(s.trialDays) ? s.trialDays : 0, products: (Array.isArray(m.products) ? m.products : []).filter(p => p && typeof p.id === "string").map(p => Object.assign({ id: p.id, name: String(p.name || ""), price: p.price, description: String(p.description || "") }, Number.isInteger(p.trialDays) && p.trialDays > 0 ? { trialDays: p.trialDays } : {})),
+    category: typeof m.category === "string" ? m.category : "",
+    preview: m.preview && PREVIEW_MODES.includes(m.preview.mode) ? { mode: m.preview.mode, minutes: m.preview.mode === "time" ? m.preview.minutes : 0 } : { mode: "free", minutes: 0 }, kids: kidsOf(m) };
+  return out;
+}
+// what the store shows beside the name: "Free", "$2.99", "$1.99/month", "Free trial 7 days" (the lowest way in)
+function priceLabel(p) {
+  if (!p || (!p.price && !p.monthly && !p.yearly)) return "Free";
+  if ((p.monthly || p.yearly) && p.trialDays) return "Free trial " + p.trialDays + " days";
+  if (p.monthly) return money(p.monthly) + "/month";
+  if (p.yearly) return money(p.yearly) + "/year";
+  return money(p.price);
+}
+function checkMoney(m, say, str) {
+  const tier = (v, list, what) => { if (!Number.isInteger(v) || !list.includes(v)) say(what + " must be one of Lamba's price tiers, in US cents: " + list.join(", ")); };
+  if (m.price !== undefined) tier(m.price, PRICE_TIERS.once, "price");
+  const s = m.subscription;
+  if (s !== undefined) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) say("subscription must be { monthly, yearly, trialDays }");
+    else {
+      for (const k of Object.keys(s)) if (!["monthly", "yearly", "trialDays"].includes(k)) say("subscription." + k + " is not a subscription field (monthly, yearly, trialDays)");
+      if (s.monthly === undefined && s.yearly === undefined) say("subscription needs monthly, yearly or both");
+      if (s.monthly !== undefined) tier(s.monthly, PRICE_TIERS.monthly, "subscription.monthly");
+      if (s.yearly !== undefined) tier(s.yearly, PRICE_TIERS.yearly, "subscription.yearly");
+      if (Number.isInteger(s.monthly) && Number.isInteger(s.yearly) && s.yearly >= s.monthly * 12) say("subscription.yearly must cost less than 12 months of monthly");
+      if (s.trialDays !== undefined && !(Number.isInteger(s.trialDays) && s.trialDays >= 0 && s.trialDays <= TRIAL_MAX)) say("subscription.trialDays must be a whole number of days, 0 to " + TRIAL_MAX);
+    }
+    if (m.price !== undefined) say("an app is bought once (price) or subscribed to (subscription), not both");
+  }
+  if (m.products !== undefined) {
+    if (!Array.isArray(m.products) || m.products.length > PRODUCTS_MAX) say("products: a list of at most " + PRODUCTS_MAX + " unlocks");
+    else {
+      const seen = new Set();
+      m.products.forEach((p, i) => {
+        const w = "products[" + i + "]";
+        if (!p || typeof p !== "object" || Array.isArray(p)) { say(w + " must be { id, name, price, description }"); return; }
+        for (const k of Object.keys(p)) if (!["id", "name", "price", "description", "kind", "trialDays"].includes(k)) say(w + "." + k + " is not a product field (id, name, price, description, trialDays)");
+        if (p.trialDays !== undefined && !(Number.isInteger(p.trialDays) && p.trialDays >= 0 && p.trialDays <= PRODUCT_TRIAL_MAX)) say(w + ".trialDays must be a whole number of days, 0 to " + PRODUCT_TRIAL_MAX + " (a free try before buying)");
+        if (typeof p.id !== "string" || !/^[a-z][a-z0-9-]{1,31}$/.test(p.id)) say(w + ".id must be 2 to 32 small letters, digits or dashes, starting with a letter");
+        else if (p.id === "app" || seen.has(p.id)) say(w + ".id (" + p.id + ") is used twice or is \"app\" (Lamba's word for the app itself)"); else seen.add(p.id);
+        str(p.name, 30, w + ".name"); str(p.description, 90, w + ".description");
+        tier(p.price, PRICE_TIERS.unlock, w + ".price");
+        // only unlocks for now: bought once, kept for good. Consumables (coins, lives) come later and are refused until then
+        if (p.kind !== undefined && p.kind !== "unlock") say(w + ".kind: only \"unlock\" (bought once, kept for good); consumables are not offered yet");
+      });
+    }
+  }
+  const pv = m.preview;
+  if (pv !== undefined) {
+    if (!pv || typeof pv !== "object" || !PREVIEW_MODES.includes(pv.mode)) say("preview must be { mode: \"free\" | \"time\" | \"locked\", minutes }");
+    else {
+      if (pv.mode === "time" && !(Number.isInteger(pv.minutes) && pv.minutes >= 1 && pv.minutes <= 60)) say("preview.minutes must be a whole number, 1 to 60 (minutes a day before Lamba asks the Host to buy)");
+      if (pv.mode !== "time" && pv.minutes !== undefined) say("preview.minutes is only for mode \"time\"");
+      for (const k of Object.keys(pv)) if (!["mode", "minutes"].includes(k)) say("preview." + k + " is not a preview field (mode, minutes)");
+    }
+    if (m.price === undefined && m.subscription === undefined) say("preview is for an app that is bought or subscribed to (price or subscription)");
+  } else if (m.price !== undefined || m.subscription !== undefined) say("a paid app says what it shows before it is bought: preview { mode: \"free\" | \"time\" | \"locked\" }");
+  if (Array.isArray(m.outside)) m.outside.forEach(o => { const h = String(o || "").replace(/^https:\/\//i, "").replace(/:\d+$/, ""); if (PAY_HOSTS.test(h)) say("outside: " + o + " takes payments; Lamba sells for every app (price, subscription, products and Lamba.buy)"); });
 }
 
 const ACTIONS_MAX = 4;
@@ -6256,6 +6355,12 @@ function checkSettings(m, dir, say, str, file) {
       if (m.forPlayers.includes("effects") && m.category === "kids") say("forPlayers: a kids app cannot offer Effects (Players never crack or fly over a kids app)");
     }
   }
+  // Players' controls need Players' seats: everyone past players.max joins as a visitor, and visitors never change settings
+  // (2026-11-17: Lamba Fireplace had players.max 0 and 200 visitors, so the Host's "Players can change app settings" did nothing)
+  const seats = m.players && Number.isInteger(m.players.max) ? m.players.max : 0;
+  const pg = m.settings && Array.isArray(m.settings.groups) && m.settings.groups.some(x => x && x.players === true);
+  if (m.guests === true && seats === 0 && (pg || (Array.isArray(m.forPlayers) && m.forPlayers.length)))
+    say("players.max is 0, so nobody is ever a Player: everyone joins as a visitor, and visitors never see the settings marked \"players\": true or forPlayers. Give players.max 1 or more (the first phones are Players and get the settings drawer, the rest are visitors), or remove \"players\": true and forPlayers");
   // the groups: tiles in the order shown; host parts placed where they are listed
   const seen = new Set(), used = new Set();
   if (!S.groups.length || S.groups.length > 16) say("settings.groups: 1 to 16");
@@ -6324,6 +6429,10 @@ function registryEntry(m) {
   // the settings a Player may change (the parts of the groups marked "players": true), for the room to check a Player's change
   e.playerKeys = ((m.settings || {}).groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).flatMap(partKeys)).filter((k, i, a) => a.indexOf(k) === i);
   e.live = Object.keys((m.settings || {}).fields || {}).filter(k => m.settings.fields[k].apply === "now");   // settings that go to the screen at once
+  // money (docs/sdk/MONETIZE.md): the prices in one shape for the hosts and the store, null for a free app. For an app from
+  // outside Lamba the server puts the prices its admin approved here instead (worker/money.js)
+  const pay = payOf(m); if (pay) e.pay = pay;
+  delete e.price; delete e.subscription; delete e.products; delete e.preview;
   return e;
 }
 
@@ -6357,7 +6466,380 @@ const fixHint = p => /phone design: .*(Send|Undo)/.test(p) ? "Delete your Send, 
   : /hidden file|kind of file|file names may|leaves the app|backslash|top of a disk/.test(p) ? "Rename or remove that file."
   : "";
 
-return { MANIFEST_VERSION, ID, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, SHELVES, FOR_PLAYERS, HOST_PARTS, HOST_GROUPS, inside, checkRules, ACTIONS_MAX, partKeys, cleanNew, registryEntry, fixHint };
+return { MANIFEST_VERSION, ID, NAME_MAX, nameProblem, HOST_KEYS, TYPES, PERMISSIONS, AGES, CATEGORIES, SHELVES, FOR_PLAYERS, HOST_PARTS, HOST_GROUPS, inside, checkRules, PRICE_TIERS, TRIAL_MAX, PREVIEW_MODES, PRODUCTS_MAX, PAY_HOSTS, paidOf, kidsOf, money, split, payOf, priceLabel, ACTIONS_MAX, partKeys, cleanNew, registryEntry, fixHint };
+})();
+
+// ---- tools/sdk_perf.mjs ----
+const M_perf = (() => {
+// Lamba's automated review of how an app runs on real screens (docs/sdk/REVIEW.md "The automated review"). Three parts,
+// with no reach into the disk or the network, so the server (worker/review.js), the simulator (devs/simulator/sim.js,
+// through the bundle tools/sdk_kit.mjs makes) and the kit (lamba-check.mjs, lamba-test.mjs --perf) share the very same code:
+//   perfStatic({ manifest, paths, text, acorn })  the code read without running it: style or filter writes inside
+//                                                  requestAnimationFrame callbacks, timers that redraw the whole scene, loops
+//                                                  that never stop, a film floor with no lighter copy, sound with no unlock
+//   measuredFindings(raw, manifest)                what the simulator measured (?measure=1: the probe in seal.js, the run in
+//                                                  sim.js measureRun): loops still running when idle, style writes a frame,
+//                                                  timers redrawing the screen, long tasks, memory, the film, the join card,
+//                                                  sound, the Player's phone at phone size
+//   devPrompt({ name, id, ver, findings })         one ready-to-paste prompt for the developer's AI
+// A finding: { id, severity: "must" | "should", title, where: ["scene.js:61"], evidence: [sentences with numbers],
+// why (what it does on a real screen), fix (exactly what to change), from: ["code" | "measured" | "check" | "ai"] }.
+// mergeFindings(list) joins the ones with the same id (the code and the measurement of one problem), must first.
+// Plain words: no en or em dashes, never "TV" (the screen), the Host and Players.
+
+const SCREEN_RULES = "docs/sdk/DESIGN.md (One recording layer, few animation loops)";
+
+// ---------- reading the code ----------
+const lineOf = (s, i) => { let n = 1; for (let k = 0; k < i && k < s.length; k++) if (s.charCodeAt(k) === 10) n++; return n; };
+function walk(node, fn, parent) {
+  if (!node || typeof node.type !== "string") return;
+  if (fn(node, parent) === false) return;
+  for (const k in node) {
+    if (k === "loc" || k === "start" || k === "end" || k === "range") continue;
+    const v = node[k];
+    if (Array.isArray(v)) { for (const c of v) if (c && typeof c.type === "string") walk(c, fn, node); }
+    else if (v && typeof v.type === "string") walk(v, fn, node);
+  }
+}
+function walkA(node, fn, up) {   // the same, with the nodes above: fn(node, ancestors)
+  if (!node || typeof node.type !== "string") return;
+  up = up || [];
+  if (fn(node, up) === false) return;
+  const next = up.concat([node]);
+  for (const k in node) {
+    if (k === "loc" || k === "start" || k === "end" || k === "range") continue;
+    const v = node[k];
+    if (Array.isArray(v)) { for (const c of v) if (c && typeof c.type === "string") walkA(c, fn, next); }
+    else if (v && typeof v.type === "string") walkA(v, fn, next);
+  }
+}
+// on a way out (a block that ends in return): the write that stops an effect, not one made every frame
+const onExit = up => up.some(b => b.type === "BlockStatement" && b.body.some(st => st.type === "ReturnStatement") && up.indexOf(b) > 0 && up[up.indexOf(b) - 1].type === "IfStatement");
+const isFn = n => n && (n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "FunctionDeclaration");
+const nameOfCallee = c => !c ? "" : c.type === "Identifier" ? c.name : c.type === "MemberExpression" && !c.computed && c.property ? c.property.name : "";
+const objName = c => c && c.type === "MemberExpression" && c.object ? (c.object.type === "Identifier" ? c.object.name : c.object.type === "MemberExpression" && !c.object.computed ? c.object.property.name : "") : "";
+
+// the scripts of the screen: its page's inline scripts (with where each starts in the page) and its own script files
+function screenScripts(o) {
+  const m = o.manifest || {}, sc = m.screens || {}, has = new Set(o.paths || []), out = [];
+  const text = p => has.has(p) ? o.text(p) : null;
+  const pages = [...new Set([sc.tv, sc.picture].filter(p => typeof p === "string" && has.has(p)))];
+  const seen = new Set();
+  for (const p of pages) {
+    const html = text(p); if (typeof html !== "string") continue;
+    for (const s of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+      const src = (s[1].match(/\bsrc\s*=\s*["']([^"']+)["']/i) || [])[1];
+      if (!src) { out.push({ file: p, code: s[2], line0: lineOf(html, s.index + s[0].indexOf(">") + 1) - 1 }); continue; }
+      if (/^[a-z]+:|^\/\//i.test(src) || /shell\/sdk\//.test(src)) continue;
+      const f = src.split(/[?#]/)[0].replace(/^\.\//, "");
+      const dir = p.split("/").slice(0, -1);
+      const parts = dir.concat(f.split("/")), rel = [];
+      for (const x of parts) { if (x === "" || x === ".") continue; if (x === "..") rel.pop(); else rel.push(x); }
+      const path = rel.join("/");
+      if (has.has(path) && !seen.has(path)) { seen.add(path); const t = text(path); if (typeof t === "string") out.push({ file: path, code: t, line0: 0 }); }
+    }
+  }
+  return out;
+}
+
+// One script's facts: named functions, the callbacks of requestAnimationFrame and setInterval, film options
+function factsOf(script, acorn) {
+  let ast = null;
+  try { ast = acorn.parse(script.code, { ecmaVersion: 2020, sourceType: "script", locations: true, allowReturnOutsideFunction: true }); } catch (e) { return null; }
+  const at = n => script.file + ":" + (script.line0 + (n.loc ? n.loc.start.line : 1));
+  const fns = {}, objects = {}, rafNames = new Set(["requestAnimationFrame"]), raf = [], timers = [], filmOpts = [], cleared = new Set();
+  walk(ast, (n, p) => {
+    if (n.type === "FunctionDeclaration" && n.id) fns[n.id.name] = n;
+    if (n.type === "VariableDeclarator" && n.id && n.id.type === "Identifier" && n.init) {
+      if (isFn(n.init)) fns[n.id.name] = n.init;
+      if (n.init.type === "ObjectExpression") objects[n.id.name] = n.init;
+      // var raf = window.requestAnimationFrame || ...: an alias
+      let aliased = false; walk(n.init, x => { if (nameOfCallee(x) === "requestAnimationFrame" && (x.type === "Identifier" || x.type === "MemberExpression")) aliased = true; });
+      if (aliased && !isFn(n.init)) rafNames.add(n.id.name);
+    }
+    if (n.type === "AssignmentExpression" && n.left.type === "Identifier" && isFn(n.right)) fns[n.left.name] = n.right;
+    if (n.type === "CallExpression" && /^clear(Interval|Timeout)$/.test(nameOfCallee(n.callee)) && n.arguments[0]) cleared.add(n.arguments[0].type === "Identifier" ? n.arguments[0].name : "?");
+  });
+  walk(ast, (n, p) => {
+    if (n.type !== "CallExpression") return;
+    const name = nameOfCallee(n.callee);
+    if (rafNames.has(name) && n.callee.type === "Identifier" || name === "requestAnimationFrame") raf.push({ call: n, cb: n.arguments[0] });
+    if (name === "setInterval" && n.arguments.length >= 2) {
+      const d = n.arguments[1], ms = d.type === "Literal" && typeof d.value === "number" ? d.value : null;
+      const kept = p && p.type === "VariableDeclarator" && p.id.type === "Identifier" ? p.id.name : p && p.type === "AssignmentExpression" && p.left.type === "Identifier" ? p.left.name : "";
+      timers.push({ call: n, cb: n.arguments[0], ms, kept });
+    }
+  });
+  walk(ast, n => { if (n.type === "ObjectExpression" && n.properties.some(q => q.key && (q.key.name || q.key.value) === "minQuality")) filmOpts.push(n); });
+  return { ast, at, fns, objects, raf, timers, filmOpts, cleared, code: script.code, file: script.file, line0: script.line0 };
+}
+const fnOf = (F, cb) => !cb ? null : isFn(cb) ? cb : cb.type === "Identifier" ? F.fns[cb.name] || null : null;
+// what a function does, with the named functions it calls (two levels): style writes, filter writes, drawImage calls
+function effects(F, fn, depth, seen) {
+  const out = { style: [], filter: [], ctxFilter: [], draws: 0, drawAt: null };
+  if (!fn || seen.has(fn)) return out; seen.add(fn);
+  walkA(fn.body, (n, up) => {
+    if (n !== fn.body && isFn(n) && n.type !== "ArrowFunctionExpression") return false;   // a function made inside runs later, not now
+    if (n.type === "AssignmentExpression" && n.left.type === "MemberExpression" && !onExit(up)) {
+      const L = n.left, prop = L.computed ? "" : L.property.name;
+      if (L.object.type === "MemberExpression" && !L.object.computed && L.object.property.name === "style") {
+        (prop === "filter" || prop === "webkitFilter" ? out.filter : out.style).push({ at: F.at(n), prop, el: objName(L.object) });
+      } else if (prop === "cssText" && L.object.type === "MemberExpression" && L.object.property && L.object.property.name === "style") out.style.push({ at: F.at(n), prop: "cssText", el: objName(L.object) });
+      else if (prop === "filter") out.ctxFilter.push({ at: F.at(n), el: L.object.type === "Identifier" ? L.object.name : "" });
+    }
+    if (n.type === "CallExpression") {
+      const nm = nameOfCallee(n.callee);
+      if (nm === "setProperty" && n.callee.object && n.callee.object.type === "MemberExpression" && n.callee.object.property.name === "style") {
+        const a0 = n.arguments[0], prop = a0 && a0.type === "Literal" ? String(a0.value) : "";
+        (/filter$/.test(prop) ? out.filter : out.style).push({ at: F.at(n), prop, el: objName(n.callee.object) });
+      }
+      if (nm === "drawImage" || nm === "putImageData") { out.draws++; if (!out.drawAt) out.drawAt = F.at(n); }
+      if (depth > 0 && n.callee.type === "Identifier" && F.fns[n.callee.name]) {
+        const e = effects(F, F.fns[n.callee.name], depth - 1, seen);
+        out.style.push(...e.style); out.filter.push(...e.filter); out.ctxFilter.push(...e.ctxFilter); out.draws += e.draws; if (!out.drawAt) out.drawAt = e.drawAt;
+      }
+    }
+  });
+  return out;
+}
+const strings = (F, node) => {   // the string values an expression may be: a literal, an array of them, a member of a known object
+  const out = [];
+  const one = x => {
+    if (!x) return;
+    if (x.type === "Literal" && typeof x.value === "string") out.push(x.value);
+    else if (x.type === "ArrayExpression") x.elements.forEach(one);
+    else if (x.type === "MemberExpression" && x.object.type === "Identifier" && F.objects[x.object.name]) F.objects[x.object.name].properties.forEach(q => one(q.value));
+    else if (x.type === "Identifier" && F.objects[x.name]) F.objects[x.name].properties.forEach(q => one(q.value));
+  };
+  one(node); return out;
+};
+
+function perfStatic(o) {
+  const acorn = o.acorn, F = [], out = [];
+  if (!acorn) return out;
+  for (const s of screenScripts(o)) { const f = factsOf(s, acorn); if (f) F.push(f); }
+  const add = x => out.push(Object.assign({ from: ["code"] }, x));
+  for (const f of F) {
+    // 1. style and filter writes inside requestAnimationFrame callbacks
+    const done = new Set();
+    for (const r of f.raf) {
+      const fn = fnOf(f, r.cb); if (!fn || done.has(fn)) continue; done.add(fn);
+      const e = effects(f, fn, 2, new Set()), name = r.cb.type === "Identifier" ? r.cb.name : "an animation callback";
+      if (e.filter.length) add({ id: "film-filter", severity: "must", title: "A CSS filter is changed on every animation frame",
+        where: [...new Set(e.filter.map(x => x.at))], evidence: e.filter.slice(0, 3).map(x => x.at + ": " + (x.el ? x.el + "." : "") + "style." + x.prop + " is set inside " + name + ", which requestAnimationFrame runs every frame"),
+        why: "Each new filter value makes the screen recompose the whole layer under it. On an old screen with a film behind it, that alone cut the film from 25 to about 17 pictures a second (Lamba Fireplace, 2026-11-17).",
+        fix: "Set the filter once when the look changes (a setting, a hold starting or ending), never inside the frame loop. For a glow that follows the action, draw it on your small effects canvas (globalAlpha, a gradient) instead of filtering the film canvas. " + SCREEN_RULES + "." });
+      const st = e.style.filter(x => x.prop !== "display");
+      if (st.length) add({ id: "style-per-frame", severity: "should", title: "Styles are written on every animation frame",
+        where: [...new Set(st.map(x => x.at))], evidence: st.slice(0, 3).map(x => x.at + ": " + (x.el ? x.el + "." : "") + "style." + x.prop + " is set inside " + name),
+        why: "Style changes every frame make the screen work out the layout and repaint again each time, which old screens cannot do at 25 pictures a second.",
+        fix: "Change styles only when something changes (compare with the last value and skip when equal), or animate with a CSS transition, or draw it on a canvas." });
+      if (e.ctxFilter.length) add({ id: "canvas-filter-frame", severity: "should", title: "A canvas filter is used on every animation frame",
+        where: [...new Set(e.ctxFilter.map(x => x.at))], evidence: e.ctxFilter.slice(0, 2).map(x => x.at + ": " + (x.el ? x.el + "." : "") + "filter is set inside " + name),
+        why: "A canvas filter runs over every pixel drawn after it. Old screens draw it on the processor, slowly.",
+        fix: "Draw the filtered picture once into a spare canvas when the look changes, then draw that copy each frame." });
+      // a loop that asks for the next frame first thing, with no way out
+      if (r.cb.type === "Identifier" && fn.body && fn.body.type === "BlockStatement") {
+        const top = fn.body.body, i = top.findIndex(st => st.type === "ExpressionStatement" && st.expression && (st.expression.type === "CallExpression" && f.raf.some(x => x.call === st.expression) || st.expression.type === "AssignmentExpression" && f.raf.some(x => x.call === st.expression.right)));
+        const before = i < 0 ? [] : top.slice(0, i);
+        let exits = false; before.forEach(st => walk(st, n => { if (n.type === "ReturnStatement") exits = true; if (isFn(n)) return false; }));
+        if (i > -1 && !exits && f.filmOpts.length + F.reduce((a, g) => a + (/\bLamba\.film\s*\(|\.film\s*\(/.test(g.code) ? 1 : 0), 0) > 0)
+          add({ id: "raf-idle", severity: "should", title: "An animation loop over the film never stops",
+            where: [f.at(top[i])], evidence: [f.at(top[i]) + ": " + name + " asks for the next frame every time, with no way to stop"],
+            why: "The film already moves the picture. A second loop that runs all the time costs an old screen frames even when nothing happens.",
+            fix: "Run the loop only while its effect is visible (start it when a hold or a burst begins, stop it with cancelAnimationFrame when the last spark is gone). " + SCREEN_RULES + "." });
+      }
+    }
+    // 2. timers that redraw the scene
+    for (const t of f.timers) {
+      const fn = fnOf(f, t.cb); if (!fn) continue;
+      const e = effects(f, fn, 2, new Set()), at = f.at(t.call);
+      if (t.ms !== null && t.ms <= 250 && e.draws > 0) add({ id: "interval-redraw", severity: "must", title: "A timer redraws the scene every " + t.ms + " ms",
+        where: [at], evidence: [at + ": setInterval every " + t.ms + " ms calls code with " + e.draws + " drawImage call" + (e.draws === 1 ? "" : "s") + (e.drawAt ? " (" + e.drawAt + ")" : "")],
+        why: "Redrawing a full-screen canvas " + Math.round(1000 / t.ms) + " times a second on a timer competes with the film and the page for every frame, and keeps going when nothing changes.",
+        fix: "Draw the scene once when something changes (a setting, a log added, the screen's size). Put what moves on its own small canvas, or into the requestAnimationFrame loop that already runs, and only while it moves." });
+      else if (t.ms !== null && t.ms <= 100 && !(t.kept && (f.cleared.has(t.kept) || F.some(g => g.cleared.has(t.kept))))) add({ id: "interval-always", severity: "should", title: "A timer runs every " + t.ms + " ms, all the time",
+        where: [at], evidence: [at + ": setInterval every " + t.ms + " ms is never cleared"],
+        why: "A fast timer that never stops wakes the screen " + Math.round(1000 / t.ms) + " times a second for the whole time the app is on, even when nobody is doing anything.",
+        fix: "Start the timer when something begins (a hold, a burst) and clear it when it ends, or use setTimeout for the one moment you need." });
+    }
+    // 3. a film floor with no lighter copy
+    for (const ob of f.filmOpts) {
+      const films = ob.properties.find(q => q.key && (q.key.name || q.key.value) === "films"), low = ob.properties.find(q => q.key && (q.key.name || q.key.value) === "low");
+      const list = films ? strings(f, films.value) : [], at = f.at(ob);
+      if ((films && list.length && !list.some(s => /-360\.film$/.test(s))) || (low && low.value.type === "Literal" && low.value.value === false))
+        add({ id: "min-quality", severity: "should", title: "A film floor (minQuality) with no lighter copy to fall back on",
+          where: [at], evidence: [at + ": minQuality is set and " + (list.length ? "films lists " + new Set(list).size + " cop" + (new Set(list).size === 1 ? "y" : "ies") + " (" + [...new Set(list)].filter(s => /-720\.film$/.test(s)).concat([...new Set(list)]).slice(0, 1) + ", ...)" : "low is false") + ", none of them a -360 copy"],
+          why: "minQuality keeps a screen at 720 lines only while it plays smoothly. A screen measured too slow goes under the floor, and with no 360 copy listed it has only the still picture left.",
+          fix: "List the 360 copy last in films (films: [\"films/x.film\", \"films/x-720.film\", \"films/x-360.film\"]) or leave films out so Lamba finds x-720.film and x-360.film itself. Make them with node lamba-film.mjs. docs/sdk/FILMS.md (A quality floor)." });
+    }
+  }
+  // 4. sound with no unlock (all screen scripts together)
+  const all = F.map(f => f.code).join("\n");
+  if (/\bsound\s*\.\s*context\s*\(/.test(all) && !/\bsound\s*\.\s*(unlocked|onUnlock)\b/.test(all)) {
+    const f = F.find(g => /\bsound\s*\.\s*context\s*\(/.test(g.code)), at = f.file + ":" + (f.line0 + lineOf(f.code, f.code.search(/\bsound\s*\.\s*context\s*\(/)));
+    add({ id: "sound-unlock", severity: "should", title: "Sound starts without waiting for the screen to allow it",
+      where: [at], evidence: [at + ": Lamba.sound.context() is used, and no script reads Lamba.sound.unlocked or Lamba.sound.onUnlock"],
+      why: "Screen browsers play sound only after a button on the remote. Sound started before that is lost, and never starts later on its own.",
+      fix: "Start sound in Lamba.sound.onUnlock(function () { ... }) and check Lamba.sound.unlocked before each sound. docs/sdk/SDK.md (Lamba.sound.unlocked)." });
+  }
+  return mergeFindings(out);
+}
+// sentences for lamba check (its warnings): one a finding
+const perfWarnings = list => list.map(x => (x.where && x.where[0] ? x.where[0] + ": " : "") + x.title + ". " + x.fix);
+
+// ---------- what the simulator measured ----------
+// raw (sim.js measureRun): { v, dur, screen: [w, h], phases: { settle, base, act, idle: [from, to] in s }, tv: probe, player: probe,
+// joincard: [{ t, share, cx, cy, on }], words: { type: n }, problems: [sentences], sound: { unlockAt } }
+// probe (seal.js): { sec: { s: bucket }, loops: { key: { name, site, n } }, timers: [{ ms, site, ticks, draws, px, cleared }], filmFilterSite,
+// styleSite, film: { fps: [], rung, under, floor }, mem: [[t, bytes]], canvases, audio: { sources, locked, first }, unlocked, longtasks, layout }
+const R = n => Math.round(n), R1 = n => Math.round(n * 10) / 10;
+function sumOver(probe, from, to, k) { let s = 0; if (!probe || !probe.sec) return 0; for (const t in probe.sec) if (+t >= from && +t < to) s += probe.sec[t][k] || 0; return s; }
+const perSec = (probe, ph, k) => !ph ? 0 : sumOver(probe, ph[0], ph[1], k) / Math.max(1, ph[1] - ph[0]);
+function measuredFindings(raw, manifest) {
+  const out = [], m = manifest || {}, tv = raw && raw.tv, pl = raw && raw.player, ph = (raw && raw.phases) || {};
+  if (!raw || !tv) return out;
+  const add = x => out.push(Object.assign({ from: ["measured"] }, x));
+  // the idle part of each loop, timer and canvas count (the probe keeps them second by second)
+  const inIdle = o => { let n = 0; if (ph.idle && o) for (const s in o) if (+s >= ph.idle[0] && +s < ph.idle[1]) n += o[s]; return n; };
+  for (const key in tv.loops || {}) { const l = tv.loops[key]; if (l.sec) l.idle = inIdle(l.sec); }
+  for (const t of tv.timers || []) if (t.sec) { t.idleTicks = inIdle(t.sec); t.idlePx = inIdle(t.px); }
+  if (tv.canvasSec) tv.canvasesIdle = inIdle(tv.canvasSec);
+  const [W, H] = raw.screen || [960, 540], area = W * H, film = tv.film || {}, hasFilm = !!(film.made || (film.fps && film.fps.length));
+  const busy = ph.act ? [ph.base ? ph.base[0] : ph.act[0], ph.act[1]] : ph.base;
+  // the film canvas's filter, each frame
+  const ff = Math.max(perSec(tv, ph.act, "filmFilterW"), perSec(tv, ph.base, "filmFilterW"), perSec(tv, ph.idle, "filmFilterW"));
+  if (ff >= 5) add({ id: "film-filter", severity: "must", title: "A CSS filter is changed on every animation frame",
+    where: tv.filmFilterSite ? [tv.filmFilterSite] : [], evidence: ["The film canvas's style.filter was set " + R(ff) + " times a second" + (tv.filmFilterSite ? " (" + tv.filmFilterSite + ")" : "") + " while " + (perSec(tv, ph.act, "filmFilterW") >= ff ? "a Player held the main key" : "the app ran")],
+    why: "Each new filter value makes the screen recompose the film's whole layer. On an old screen that cut the film from 25 to about 17 pictures a second.",
+    fix: "Set the filter once when the look changes, never inside the frame loop; draw a glow on the small effects canvas instead." });
+  const sw = Math.max(perSec(tv, ph.act, "styleW"), perSec(tv, ph.base, "styleW"), perSec(tv, ph.idle, "styleW"));
+  if (sw >= 20) add({ id: "style-per-frame", severity: "should", title: "Styles are written on every animation frame",
+    where: tv.styleSite ? [tv.styleSite] : [], evidence: [R(sw) + " style writes a second inside animation frames" + (tv.styleSite ? " (the first at " + tv.styleSite + ")" : "")],
+    why: "Each one makes the screen work out the layout and repaint again.", fix: "Write a style only when its value changes, or draw it on a canvas." });
+  // loops still running with nothing happening
+  const idleLoops = Object.keys(tv.loops || {}).map(k => tv.loops[k]).filter(l => (l.idle || 0) / Math.max(1, ph.idle ? ph.idle[1] - ph.idle[0] : 1) >= 10);
+  if (ph.idle && idleLoops.length && (hasFilm || idleLoops.length > 1)) {
+    const secs = ph.idle[1] - ph.idle[0];
+    add({ id: "raf-idle", severity: hasFilm ? "must" : "should", title: hasFilm ? "An animation loop keeps running over the film when nothing happens" : "Several animation loops run when nothing happens",
+      where: idleLoops.map(l => l.site).filter(Boolean), evidence: idleLoops.map(l => (l.name || "a requestAnimationFrame callback") + " ran " + R(l.idle / secs) + " times a second for " + secs + " s after the last tap" + (l.site ? " (" + l.site + ")" : "")),
+      why: "With nothing moving but the film, every extra frame of work is taken from the film on an old screen, and the screen never rests.",
+      fix: "Stop the loop (cancelAnimationFrame, or do not ask for the next frame) once its sparks are gone; start it again when a hold or a burst begins." });
+  }
+  // timers that redraw the screen
+  for (const t of (tv.timers || []).filter(x => !/^shell\//.test(x.site || ""))) {   // (Lamba's own film player has its timer)
+    const ticks = t.idleTicks || 0, px = ticks ? (t.idlePx || 0) / ticks : 0;
+    const share = px / area, said = share >= 1.05 ? R1(share) + " times the screen's pixels" : R(share * 100) + "% of the screen's pixels";
+    if (t.ms <= 250 && ticks >= 3 && share >= 0.4) add({ id: "interval-redraw", severity: "must", title: "A timer redraws the scene every " + t.ms + " ms",
+      where: t.site ? [t.site] : [], evidence: ["setInterval every " + t.ms + " ms drew " + said + " on each of " + ticks + " ticks while nothing happened" + (t.site ? " (" + t.site + ")" : "")],
+      why: "A full redraw " + R(1000 / t.ms) + " times a second competes with the film for every frame and never stops.",
+      fix: "Redraw only when something changes; animate what moves on its own small canvas, and only while it moves." });
+    else if (t.ms <= 100 && ph.idle && ticks >= 0.8 * (ph.idle[1] - ph.idle[0]) * 1000 / Math.max(16, t.ms)) add({ id: "interval-always", severity: "should", title: "A timer runs every " + t.ms + " ms, all the time",
+      where: t.site ? [t.site] : [], evidence: ["setInterval every " + t.ms + " ms ticked " + ticks + " times while nothing happened" + (t.site ? " (" + t.site + ")" : "")],
+      why: "A fast timer that never stops wakes the screen " + R(1000 / t.ms) + " times a second, even when nobody is doing anything.",
+      fix: "Start the timer when something begins and clear it when it ends." });
+  }
+  // long tasks
+  const lt = sumOver(tv, 0, 1e9, "lt"), dur = raw.dur || 60;
+  if (lt / dur * 10 >= 500) add({ id: "long-tasks", severity: lt / dur * 10 >= 2000 ? "must" : "should", title: "The screen page blocks for long stretches",
+    where: [], evidence: [R(lt) + " ms of tasks longer than 50 ms in " + R(dur) + " s (" + R(lt / dur * 10) + " ms every 10 s) on this computer; an old screen is about 4 times slower"],
+    why: "While a task runs, nothing else moves: the film and the join card stutter.",
+    fix: "Split heavy work (decoding pictures, building caches) across frames, and do it once at load, not on each change." });
+  // memory
+  const mem = tv.mem || [];
+  if (mem.length >= 2) {
+    const a = mem.find(x => x[0] >= 10) || mem[0], b = mem[mem.length - 1], grew = b[1] - a[1];
+    if (grew > 20e6 && grew > a[1] * 0.3) add({ id: "memory", severity: "should", title: "Memory keeps growing",
+      where: [], evidence: ["The screen page's memory grew from " + R(a[1] / 1e6) + " MB to " + R(b[1] / 1e6) + " MB between " + a[0] + " s and " + b[0] + " s"],
+      why: "Old screens have little memory: a page that keeps growing is reloaded by the browser or slows down after an hour.",
+      fix: "Reuse canvases and pictures instead of making new ones; cap lists (sparks, logs) and drop what is gone." });
+  }
+  if ((tv.canvasesIdle || 0) > 20) add({ id: "canvases", severity: "should", title: "New canvases are made all the time",
+    where: tv.canvasSite ? [tv.canvasSite] : [], evidence: [tv.canvasesIdle + " canvases made while nothing happened"], why: "Each canvas holds its own picture in memory.", fix: "Make a canvas once and reuse it." });
+  // the film
+  if (film.made && !(film.fps || []).some(x => x > 0)) add({ id: "film-none", severity: "must", title: "The film never played",
+    where: [], evidence: ["Lamba.film was called, but no picture of it was shown in " + R(dur) + " s"], why: "People see the still picture, or nothing.", fix: "Check the film's address and that name.film is in the folder (node lamba-film.mjs makes it)." });
+  if (film.under) add({ id: "film-under", severity: "should", title: "The film played under its quality floor",
+    where: [], evidence: ["The film went under minQuality " + (film.floor || "") + " (rung " + (film.rung || "?") + ") on this computer"], why: "This computer could not play the copies at the floor smoothly; old screens will do worse.", fix: "Lighten the scene around the film (fewer layers and loops), or lower the floor." });
+  // the join card
+  const jc = (raw.joincard || []).filter(x => x.on);
+  if (jc.length) {
+    const big = jc.filter(x => x.share >= 0.12), middle = big.filter(x => Math.abs(x.cx - .5) < .2 && Math.abs(x.cy - .5) < .2), cats = [].concat(m.categories || [], m.category || []);
+    const ambient = cats.some(c => ["ambient", "art", "clocks", "calm"].includes(c));
+    if (ambient && middle.length >= 3) add({ id: "joincard-middle", severity: "should", title: "The join card sits in the middle of the scene",
+      where: [], evidence: ["The card covered " + R(Math.max(...middle.map(x => x.share)) * 100) + "% of the screen, in the middle, for " + middle.length + " s"], why: "An ambient app is art on the wall: a big card in the middle hides it.", fix: "Ask for Lamba.joinCard({ show: true, size: \"corner\" }) once someone is connected, and leave the corner free." });
+    else if (big.length > 40) add({ id: "joincard-big", severity: "should", title: "The big join card stays up", where: [], evidence: ["The card covered " + R(Math.max(...big.map(x => x.share)) * 100) + "% of the screen for " + big.length + " s"], why: "People cannot see the app behind it.", fix: "Ask for size \"corner\" once someone has joined." });
+  }
+  const jw = (raw.words || {}).joincard || 0;
+  if (jw > Math.max(6, dur / 6)) add({ id: "joincard-often", severity: "should", title: "The join card is asked for again and again",
+    where: [], evidence: ["Lamba.joinCard was called " + jw + " times in " + R(dur) + " s"], why: "Each call can bring the card back or move it.", fix: "Call it when the number of people changes between none and some, not on every message." });
+  // sound
+  const au = tv.audio || {}, perms = Array.isArray(m.permissions) ? m.permissions : [];
+  if (au.locked > 0) add({ id: "sound-unlock", severity: "should", title: "Sound starts before the screen allows it",
+    where: au.lockedSite ? [au.lockedSite] : [], evidence: [au.locked + " sound" + (au.locked === 1 ? "" : "s") + " started before the remote's first button (lost on a real screen)"],
+    why: "Screen browsers play sound only after a button on the remote.", fix: "Start sound in Lamba.sound.onUnlock and check Lamba.sound.unlocked before each sound." });
+  if (perms.includes("sound") && raw.sound && raw.sound.unlockAt && !(au.after > 0) && !(au.media > 0)) add({ id: "sound-silent", severity: "should", title: "No sound after the screen allowed it",
+    where: [], evidence: ["lamba.json asks for sound, but nothing played in the " + R((ph.idle ? ph.idle[1] : dur) - raw.sound.unlockAt) + " s after the remote's button"],
+    why: "People expect the sound the app promises once they press a button.", fix: "Start the sound in Lamba.sound.onUnlock, or remove \"sound\" from permissions." });
+  if (raw.notDrawn) add({ id: "not-drawn", severity: "must", title: "The screen never said it had drawn", where: [], evidence: ["Lamba.drawn() was not called within 60 s of the screen page loading"],
+    why: "Lamba fades the screen in only after Lamba.drawn(): until then people see nothing.", fix: "Call Lamba.drawn() once the first picture is on the screen, even when a picture or a film failed to load." });
+  // errors
+  const errs = (raw.problems || []).filter(p => !/^note/.test(p));
+  if (errs.length) add({ id: "errors", severity: "must", title: "Errors while it ran", where: [], evidence: errs.slice(0, 5), why: "An error can stop the screen or the phone halfway.", fix: "Fix each error; run node lamba-test.mjs to see them with their place." });
+  // the Player's phone at phone size
+  const lay = pl && pl.layout;
+  if (lay) {
+    const at = " at " + lay.w + " x " + lay.h;
+    if (lay.small && lay.small.length) add({ id: "tap-small", severity: "should", title: "Keys smaller than a finger on the Player's phone", where: [],
+      evidence: lay.small.slice(0, 4).map(s => "\"" + s.label + "\" is " + s.w + " x " + s.h + " px" + at), why: "People tap without looking at a phone held in one hand; under 44 px they miss.", fix: "Make every key at least 44 x 44 px (padding counts)." });
+    if (lay.overlap && lay.overlap.length) add({ id: "tap-overlap", severity: "should", title: "Keys overlap on the Player's phone", where: [],
+      evidence: lay.overlap.slice(0, 3).map(s => "\"" + s[0] + "\" and \"" + s[1] + "\" overlap" + at), why: "A tap lands on the wrong key.", fix: "Lay the keys out so none covers another at every phone size." });
+    if (lay.scrollY || lay.scrollX) add({ id: "phone-scroll", severity: "should", title: "The Player's remote scrolls", where: [],
+      evidence: ["The page is " + lay.sw + " x " + lay.sh + " px in a " + lay.w + " x " + lay.h + " phone"], why: "A remote fills the phone and never moves under a finger.", fix: "Fit the remote to the phone's height (100% height, flex), and test at 375 x 667 and sideways." });
+    if (lay.off && lay.off.length) add({ id: "phone-off", severity: "should", title: "Keys outside the Player's screen", where: [], evidence: lay.off.slice(0, 3).map(s => "\"" + s + "\" is outside the screen" + at), why: "People cannot reach them.", fix: "Keep every key inside the phone's screen, sideways too." });
+  }
+  return mergeFindings(out);
+}
+
+// ---------- one list, and the prompt ----------
+const RANK = { must: 0, should: 1 };
+function mergeFindings(list) {
+  const by = new Map(), out = [];
+  for (const x of list || []) {
+    if (!x || !x.title) continue;
+    const k = x.id || x.title, y = by.get(k);
+    if (!y) { const c = { id: x.id || "", severity: x.severity === "must" ? "must" : "should", title: x.title, where: (x.where || []).slice(), evidence: (x.evidence || []).slice(), why: x.why || "", fix: x.fix || "", from: (x.from || []).slice() }; by.set(k, c); out.push(c); continue; }
+    if (x.severity === "must") y.severity = "must";
+    for (const w of x.where || []) if (!y.where.includes(w)) y.where.push(w);
+    for (const e of x.evidence || []) if (!y.evidence.includes(e)) y.evidence.push(e);
+    for (const f of x.from || []) if (!y.from.includes(f)) y.from.push(f);
+    if (!y.why && x.why) y.why = x.why; if (!y.fix && x.fix) y.fix = x.fix;
+  }
+  return out.sort((a, b) => RANK[a.severity] - RANK[b.severity]);
+}
+// the check's own sentences (what lamba check says today about the version's files) as findings
+function checkFindings(problems, warnings) {
+  const one = (s, sev) => { const m = String(s).match(/^([\w./-]+\.(?:html|js|json|css|svg|film)(?::\d+)?):\s*/); return { id: "check:" + String(s).slice(0, 80), severity: sev, title: String(s).replace(/^[\w./-]+\.(?:html|js|json|css|svg|film)(?::\d+)?:\s*/, "").replace(/^[a-z]+(?=[\s,:]|$)/, w => w.charAt(0).toUpperCase() + w.slice(1)), where: m ? [m[1]] : [], evidence: [], why: "", fix: "", from: ["check"] }; };
+  return (problems || []).map(s => one(s, "must")).concat((warnings || []).map(s => one(s, "should")));
+}
+const ln = s => String(s || "").replace(/[\u2013\u2014]/g, ",").replace(/\s+/g, " ").trim();
+function devPrompt(o) {
+  const all = mergeFindings(o.findings || []), must = all.filter(x => x.severity === "must"), should = all.filter(x => x.severity !== "must");
+  const id = o.id || "my-app", name = o.name || id;
+  const item = (x, i) => (i + 1) + ". " + ln(x.title) + (x.where && x.where.length ? " (" + x.where.slice(0, 3).join(", ") + ")" : "")
+    + (x.evidence && x.evidence.length ? "\n   Found: " + x.evidence.slice(0, 3).map(ln).join("; ") : "")
+    + (x.why ? "\n   Why it matters: " + ln(x.why) : "") + (x.fix ? "\n   Fix: " + ln(x.fix) : "");
+  let t = "My Lamba TV app \"" + name + "\" (folder " + id + ")" + (o.ver ? ", version " + o.ver + "," : "") + " was reviewed by Lamba. "
+    + (must.length ? "Fix these before it can be approved" : "It can be approved; these would make it better") + ". Read the code at each place named, make the change, and keep everything else as it is.\n";
+  if (must.length) t += "\nMust fix:\n" + must.map(item).join("\n") + "\n";
+  if (should.length) t += "\n" + (must.length ? "Also worth fixing:" : "Suggestions:") + "\n" + should.map(item).join("\n") + "\n";
+  if (!all.length) t += "\nThe review found nothing to change.\n";
+  t += "\nLamba's rules for screens are in the kit: docs DESIGN.md, UI.md and FILMS.md (https://lamba.tv/devs/docs/). When you are done, run node lamba-check.mjs " + id
+    + " and node lamba-test.mjs " + id + " --perf, fix anything they find, then zip the " + id + " folder so I can upload it as a new version.";
+  return t;
+}
+
+return { perfStatic, perfWarnings, measuredFindings, mergeFindings, checkFindings, devPrompt };
 })();
 
 // ---- tools/sdk_check.mjs ----
@@ -6380,7 +6862,12 @@ const M_files = (() => {
 //   6. no address outside Lamba is reached unless lamba.json declares it in outside
 //   7. no en or em dash anywhere people could read it (the app's pages, scripts and lamba.json)
 //   9. Lamba.motion and Lamba.track (the phone's motion and camera) only on a phone page, and only when lamba.json declares "motion" or
-//      "camera" in permissions; no getUserMedia or device motion events of its own (the host keeps the sensors: the picture never reaches the app)
+//      "camera" in permissions; no getUserMedia or device motion events of its own (the host keeps the sensors: the picture never reaches the app).
+//      Lamba.mic (the phone's microphone: level, words, record) only on a phone page and Lamba.voice (voice messages and live voice) only on
+//      the screen page, both only with "microphone"; no speech recognition, recorder or microphone stream of its own. Warnings: listening that
+//      never stops, words with no plan for a phone without speech to text, live voice in a kids app, and a listing that never says it listens
+//      (micModes says which of the four the app uses, for the reviewer). Lamba.video (a live camera or screen shown on the screen) only on the
+//      screen page and only with "video"; getDisplayMedia is the host's, never the app's
 //  10. the Host's phone is the live screen on top and ONE row of tiles (settings, and the app's one tap actions from lamba.json
 //      actions), nothing in between: no controller view, no controls for the Host in phone.html (see controllerRule)
 //  13. every film the pages name (a string ending in .film) is in the folder; its smaller copies (name-720.film, name-360.film, which
@@ -6391,9 +6878,23 @@ const M_files = (() => {
 //      for Players (a group with "players": true holding the volume or music settings)
 //  16. phone pages use Lamba's controls (docs/sdk/UI.md): errors for their own Send/Undo/Reset, sound or music control, -/+ steppers,
 //      number inputs; warnings for a heading or profile at the top, tabs, a grid of choice cards
+//  17. warnings: how the screen runs on old screens (tools/sdk_perf.mjs perfStatic)
+//  18. money (docs/sdk/MONETIZE.md): Lamba sells for every app. Refused: code that takes payments itself (Stripe, PayPal, the
+//      browser's PaymentRequest or Apple Pay), card fields (card number, CVC, expiry), links out to other payment pages;
+//      Lamba.buy on the screen page (the screen never sells), Lamba.buy of a product lamba.json does not list, or in an app with
+//      nothing for sale. A kids app: a warning that Lamba sells there to the Host only, behind an extra confirm
 //   8. the phone's controls are the shared ones: no <input type=range> or type=color of its own, no grid of colour dots or
 //      swatches (a colours setting with swatches in lamba.json gets the drawer's colour strip and picker), no LambaUI.colours
-const { inside, partKeys } = M_rules;
+const { inside, partKeys, PAY_HOSTS, paidOf, kidsOf } = M_rules;
+const { perfStatic, perfWarnings } = M_perf;
+
+// ---- the microphone: which of its four uses an app's code makes (the reviewer's "What to look at by hand", worker/check.js) ----
+const MIC_MODES = [["level", "loudness", /\.\s*mic\s*\.\s*level\s*\(/], ["words", "words", /\.\s*mic\s*\.\s*words\s*\(/], ["record", "voice messages", /\.\s*mic\s*\.\s*record\s*\(|\.\s*voice\s*\.\s*play\s*\(|\.\s*voice\s*\.\s*on\s*\(\s*["']message/], ["live", "live voice", /\.\s*voice\s*\.\s*live\s*\(/]];
+const stripCode = c => String(c || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+function micModes({ paths, text }) {
+  const code = (paths || []).filter(p => /\.(html|js)$/i.test(p)).map(p => stripCode(text(p))).join("\n");
+  return MIC_MODES.filter(m => m[2].test(code)).map(m => m[1]);
+}
 
 const TEXT = [".html", ".js", ".css", ".json", ".svg", ".md", ".txt"];
 const ext = p => { const m = String(p).match(/\.[A-Za-z0-9]+$/); return m ? m[0].toLowerCase() : ""; };
@@ -6806,6 +7307,7 @@ function checkFiles(o) {
     if (/LambaUI\.colours\b/.test(code)) say(f + ": LambaUI.colours is gone: give the colours setting swatches in lamba.json and put it in a group part (the drawer draws the shared colour strip and picker)");
     if (/(className|class)\s*=\s*["'][^"']*\b(swatch|swatches|colou?r-?(grid|dots?|picker|chips?)|dots?-?grid)\b/i.test(code) || /classList\.add\(\s*["'][^"']*(swatch|colou?r-?(grid|dots?|picker))/i.test(code)) say(f + ": a home-made colour grid or picker: use a colours or colour setting with swatches (the drawer draws the shared strip and picker)");
   }
+  const warningsLater = [];
   // 9. the phone's motion and camera: declared, on a phone page, and through Lamba (never the browser's own)
   const perms = Array.isArray(m.permissions) ? m.permissions : [], tvFiles = new Set([screens.tv, screens.picture].filter(Boolean));
   for (const t of [...tvFiles]) { const h = text(t); if (h !== null) scriptsOf(h).srcs.forEach(s => { const f = allowedRef(t, s) ? where(t, s) : null; if (f && f.indexOf("@sdk/") !== 0) tvFiles.add(f); }); }
@@ -6816,15 +7318,27 @@ function checkFiles(o) {
       if (!perms.includes(perm)) say(f + ": uses " + name + " but lamba.json permissions does not include \"" + perm + "\" (add it: the host asks the person)");
       if (tvFiles.has(f)) say(f + ": " + name + " is for the phone's pages (the screen has no " + (perm === "camera" ? "camera" : "motion sensors") + ")");
     }
-    if (/\bgetUserMedia\b|\bmediaDevices\b/.test(code)) say(f + ": opens the camera itself (use Lamba.track: the host asks the person and the picture stays on the phone)");
+    for (const [use, name, phone] of [[/\bLamba\s*\.\s*mic\b|\b[A-Za-z_$][\w$]*\s*\.\s*mic\s*\.\s*(level|words|record|stop)\s*\(/, "Lamba.mic", true], [/\bLamba\s*\.\s*voice\b|\b[A-Za-z_$][\w$]*\s*\.\s*voice\s*\.\s*(play|live)\s*\(/, "Lamba.voice", false]]) {
+      if (!use.test(code)) continue;
+      if (!perms.includes("microphone")) say(f + ": uses " + name + " but lamba.json permissions does not include \"microphone\" (add it: Lamba asks the person)");
+      if (phone && tvFiles.has(f)) say(f + ": Lamba.mic is for the phone's pages (the screen has no microphone: it plays voice with Lamba.voice)");
+      if (!phone && !tvFiles.has(f) && /\.\s*voice\s*\.\s*(play|live)\s*\(/.test(code)) say(f + ": Lamba.voice is for the screen page (the phone records with Lamba.mic.record; live voice is Lamba's own hold to talk)");
+    }
+    if (/\bLamba\s*\.\s*video\b|\b[A-Za-z_$][\w$]*\s*\.\s*video\s*\.\s*(live|place)\s*\(/.test(code)) {
+      if (!perms.includes("video")) say(f + ": uses Lamba.video but lamba.json permissions does not include \"video\" (add it: Lamba shows the picture and asks the person)");
+      if (!tvFiles.has(f)) say(f + ": Lamba.video is for the screen page (the phone's own Show my camera and Share my screen controls are Lamba's)");
+    }
+    if (/\bgetUserMedia\b|\bmediaDevices\b|\bgetDisplayMedia\b/.test(code)) say(f + ": opens the camera or microphone itself (use Lamba.track or Lamba.mic: the host asks the person and the picture or sound stays on the phone)");
+    if (/\b(webkit)?SpeechRecognition\b|\bMediaRecorder\b|\bcreateMediaStreamSource\b/.test(code)) say(f + ": listens to the microphone itself (use Lamba.mic: words, loudness or a voice message, and Lamba asks the person first)");
     if (/["'](devicemotion|deviceorientation|deviceorientationabsolute)["']|\b(DeviceMotionEvent|DeviceOrientationEvent)\b/.test(code)) say(f + ": reads the phone's sensors itself (use Lamba.motion: the host asks the person and calms the readings)");
   }
+  micWarnings(m, [...has].filter(f => [".html", ".js"].includes(ext(f))), text, w => warningsLater.push(w));
   // 10. the Host's phone: the live screen on top and one row of tiles; no controller view, no controls for the Host
   controllerRule({ manifest: m, paths: [...has], text }, say, scriptsOf, where);
   // 14. no emoji in what people read
   noEmoji(m, say, pages, text, scriptsOf, where, has);
   // 15. an app Players join has a player remote, and never asks for a name
-  const warnings = [];
+  const warnings = warningsLater;
   playerRemote(m, say, warnings, text, scriptsOf, where, has);
   askNameRule(m, warnings, pages, text, scriptsOf, where, has);
   // 16. phone pages use Lamba's controls (docs/sdk/UI.md)
@@ -6841,8 +7355,46 @@ function checkFiles(o) {
   tvWord(m, say, warnings, pages, text, scriptsOf);
   filmRule(m, has, text, say, warnings, where);
   iconRule(m, has, text, warnings);
-  P.warnings = warnings;
+  // 17. how the screen runs on old screens (tools/sdk_perf.mjs): style or filter writes every frame, timers that redraw the
+  //     scene, a film floor with no lighter copy, sound with no unlock. Warnings here; the review (docs/sdk/REVIEW.md) shows them as findings
+  moneyRule(m, has, text, say, warnings, [...tvFiles]);
+  const perf = acorn ? perfStatic({ manifest: m, paths: [...has], text, acorn }) : [];
+  perfWarnings(perf).forEach(w => warnings.push(w));
+  // 18. split screen: "split": "tall" gives the screen page a half's own tall shape, so it should read Lamba.layout (docs/sdk/DESIGN.md "Split screen")
+  if (m.split === "tall" && typeof screens.tv === "string") {
+    const html = text(screens.tv), { inline, srcs } = html === null ? { inline: [], srcs: [] } : scriptsOf(html);
+    const code = inline.concat(srcs.map(s => allowedRef(screens.tv, s) ? where(screens.tv, s) : null).filter(f => f && has.has(f)).map(f => text(f) || "")).join("\n");
+    if (html !== null && !/\blayout\b|onLayout/.test(code)) warnings.push(screens.tv + ": lamba.json says \"split\": \"tall\", but the screen page never reads Lamba.layout: in a half it gets half the width and the whole height. Lay it out for that (Lamba.onLayout), or leave \"split\" out and the host letterboxes the whole page");
+  }
+  P.warnings = warnings; P.perf = perf;
   return P;
+}
+
+// 18. money: only Lamba takes payments. Comments are left out first, so a note about it never trips the rule
+const PAY_CODE = [
+  [/\bStripe\s*\(|\bloadStripe\b|\bstripe\.(confirm|redirectToCheckout|elements)\b/i, "uses Stripe itself"],
+  [/\bpaypal\s*\.\s*(Buttons|checkout)\b|\bpaypal-button\b/i, "uses PayPal itself"],
+  [/\bnew\s+PaymentRequest\b|\bPaymentRequest\s*\(|\bApplePaySession\b|\bgoogle\.payments\b/, "takes a payment with the browser itself (PaymentRequest, Apple Pay or Google Pay)"],
+  [/autocomplete\s*=\s*["']cc-(number|csc|exp|exp-month|exp-year|name)["']|\.autocomplete\s*=\s*["']cc-/i, "has a card field (autocomplete cc-...)"],
+  [/\b(name|id|placeholder|aria-label)\s*=\s*["'][^"']*\b(card ?number|cardnumber|credit ?card|cvc|cvv|security code)\b/i, "has a card field (card number, CVC)"],
+  [/\b(card number|credit card number|cvc code|cvv code)\b/i, "asks for card details"]
+];
+function moneyRule(m, has, text, say, warnings, tvFiles) {
+  const code = f => (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+  const ids = new Set((Array.isArray(m.products) ? m.products : []).map(p => p && p.id).filter(Boolean)), selling = paidOf(m), tv = new Set(tvFiles);
+  let buys = false;
+  for (const f of [...has].filter(f => [".html", ".js"].includes(ext(f)))) {
+    const c = code(f);
+    for (const [re, what] of PAY_CODE) if (re.test(c)) say(f + ": " + what + ". Lamba sells for every app: declare price, subscription or products in lamba.json and call Lamba.buy on the Host's phone");
+    for (const u of c.matchAll(/\b(?:https?:)?\/\/([a-z0-9.-]+\.[a-z]{2,})(?=[\/:"'`\s?#)]|$)/gi)) if (PAY_HOSTS.test(u[1])) say(f + ": links to " + u[1] + ", a payment page outside Lamba (Lamba sells for every app: Lamba.buy)");
+    for (const b of c.matchAll(/\bLamba\s*\.\s*buy\s*\(\s*(?:(["'])([^"']*)\1)?/g)) {
+      buys = true;
+      if (tv.has(f)) say(f + ": calls Lamba.buy on the screen page. Only the Host buys, on their phone (call it from phone.html in the Host's view)");
+      if (!selling) say(f + ": calls Lamba.buy but lamba.json sells nothing (add price, subscription or products)");
+      else if (b[2] !== undefined && b[2] !== "" && b[2] !== "app" && !ids.has(b[2])) say(f + ": Lamba.buy(\"" + b[2] + "\") names a product lamba.json does not list in products");
+    }
+  }
+  if (kidsOf(m) && (buys || selling)) warnings.push("a kids app: Lamba never offers a purchase to Players; only the Host buys, on their own phone, after an extra confirm. Keep paid parts away from children's turns (docs MONETIZE.md)");
 }
 
 // ---- the rules that apply to a piece of code on its own: a code example in the docs (tests/sdk-docs-lint.test.mjs) ----
@@ -6876,7 +7428,8 @@ function snippetProblems(code, lang, declared) {
     if (/type\s*=\s*["']color["']|\.type\s*=\s*["']color["']/.test(body)) say("a home-made colour box (type=color, rule 8): use a colours or colour setting");
     if (/LambaUI\.colours\b/.test(body)) say("LambaUI.colours is gone (rule 8): use a colours setting with swatches");
     if (/(className|class)\s*=\s*["'][^"']*\b(swatch|swatches|colou?r-?(grid|dots?|picker|chips?)|dots?-?grid)\b/i.test(body)) say("a home-made colour grid or picker (rule 8)");
-    if (/\bgetUserMedia\b|\bmediaDevices\b/.test(body)) say("opens the camera itself (rule 9: use Lamba.track)");
+    if (/\bgetUserMedia\b|\bmediaDevices\b|\bgetDisplayMedia\b/.test(body)) say("opens the camera or microphone itself (rule 9: use Lamba.track or Lamba.mic)");
+    if (/\b(webkit)?SpeechRecognition\b|\bMediaRecorder\b|\bcreateMediaStreamSource\b/.test(body)) say("listens to the microphone itself (rule 9: use Lamba.mic)");
     if (/["'](devicemotion|deviceorientation|deviceorientationabsolute)["']|\b(DeviceMotionEvent|DeviceOrientationEvent)\b/.test(body)) say("reads the phone's sensors itself (rule 9: use Lamba.motion)");
     if (/\bnew\s+WebSocket\s*\(|\bEventSource\s*\(|navigator\.sendBeacon/.test(body)) say("opens its own connection (rule 6: use Lamba.send)");
     if (/\b(localStorage|sessionStorage|indexedDB|document\.cookie)\b/.test(body)) say("uses the browser's storage (rule 6: use Lamba.store)");
@@ -6886,7 +7439,21 @@ function snippetProblems(code, lang, declared) {
   return P;
 }
 
-return { pageControls, EMOJI, phoneDesign, filmRefs, checkFiles, snippetProblems };
+// ---- rule 9's warnings for the microphone: the privacy patterns docs/sdk/DESIGN.md asks for ----
+function micWarnings(m, files, text, warn) {
+  const code = files.map(f => stripCode(text(f))).join("\n");
+  if (!/\.\s*mic\s*\.|\.\s*voice\s*\.\s*(live|play)\s*\(/.test(code)) return;
+  const modes = micModes({ paths: files, text });
+  if ((/\.\s*mic\s*\.\s*(level|words)\s*\(/.test(code)) && !/\.\s*stop\s*\(/.test(code)) warn("the microphone: Lamba.mic.level or words never stops (call the session's stop() once the app no longer listens, so the phone's microphone goes off)");
+  if (/\.\s*mic\s*\.\s*words\s*\(/.test(code) && !/canWords|["']none["']/.test(code)) warn("the microphone: words are not on every phone (Firefox has none, an iPhone needs Siri on): check Lamba.mic.canWords or the \"none\" state, and offer another way (buttons, Lamba.mic.record)");
+  if (/\.\s*mic\s*\.\s*(level|words|record)\s*\(/.test(code) && !/\.\s*on\s*\(\s*["']state["']|\.\s*ready\s*\.\s*(then|catch)\b|\.\s*catch\s*\(|\.\s*record\s*\([^)]*\)\s*\.\s*then\s*\(\s*function\s*\([^)]*\)\s*\{[^}]*\}\s*,/.test(code)) warn("the microphone: the app never hears when the person says no (session.on(\"state\") or ready.catch): show what to do instead");
+  const kids = m.category === "kids" || (Array.isArray(m.categories) && m.categories.includes("kids"));
+  if (kids && modes.includes("live voice")) warn("the microphone: a kids app's Players talk live only once the Host turns it on (Players, Microphone): the app must work without it");
+  const about = JSON.stringify([m.about, m.page && m.page.about, m.page && m.page.facts]).toLowerCase();
+  if (!/microphone|\bmic\b|voice|listen|blow|speak|sing|say/.test(about)) warn("the microphone: the app's page never says it listens (page.about or page.facts: say what it hears and why, e.g. \"Blow on your phone to...\")");
+}
+
+return { MIC_MODES, micModes, pageControls, EMOJI, phoneDesign, filmRefs, checkFiles, snippetProblems };
 })();
 
 // ---- worker/zip.js ----
@@ -6993,7 +7560,7 @@ const M_upload = (() => {
 //   r: { manifest, files: [{ path, bytes, type, size }], problems: [sentences], notes: [what a reviewer should look at], size }
 const acorn = M_acorn;
 const { checkRules, ID } = M_rules;
-const { checkFiles } = M_files;
+const { checkFiles, micModes } = M_files;
 const { unzip, mb } = M_zip;
 
 const LIMITS = { zip: 25 * 1024 * 1024, total: 25 * 1024 * 1024, file: 8 * 1024 * 1024, files: 300, depth: 8, path: 120 };
@@ -7084,7 +7651,9 @@ async function checkUpload(bytes, o) {
   // what the reviewer reads by hand (docs/sdk/REVIEW.md)
   if (warn) notes.push(warn);   // first, so the kit's check and the simulator show it on top
   notes.push("Age: " + (m.age === "all" ? "all ages" : m.age || "not given"));
-  notes.push((m.permissions || []).length ? "Asks for: " + m.permissions.join(", ") : "Asks for nothing (no sound, camera, motion or country)");
+  notes.push((m.permissions || []).length ? "Asks for: " + m.permissions.join(", ") : "Asks for nothing (no sound, camera, motion, microphone or country)");
+  if ((m.permissions || []).includes("microphone")) { const mm = micModes({ paths: files.map(f => f.path), text }); notes.push("Microphone: " + (mm.length ? mm.join(", ") : "declared, but no use found")); }
+  if ((m.permissions || []).includes("video")) notes.push("Video: shows a live camera or screen picture on the screen, only after a person taps Lamba's own button" + ((m.category === "kids" || (m.categories || []).includes("kids")) ? " (a kids app: Players' video is off until the Host turns it on)" : ""));
   notes.push((m.outside || []).length ? "Reaches outside Lamba: " + m.outside.join(", ") : "Reaches no address outside Lamba");
   notes.push(m.guests ? "Players join with their phones: up to " + ((m.players || {}).max || 0) + " at once" : "No players: the Host's phone only");
   notes.push(files.length + " files, " + mb(files.reduce((n, f) => n + f.size, 0)));
@@ -7117,7 +7686,7 @@ async function kitNotice(base) {
 // ---------- the command ----------
 // node lamba-check.mjs [folder ...]   with no folder: every folder here that has a lamba.json (or this one)
 // Each folder is checked as Lamba's server checks the zip you upload: the same code (above), on the same files.
-const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-frames","sdk-hello","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
+const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-candles","sdk-frames","sdk-hello","sdk-roommic","sdk-showme","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
 const SKIP = n => n === "node_modules" || n.startsWith(".");   // .lamba/ (the key) is hidden, so never in a zip
 const SECRET = p => /(^|\/)\.lamba(\/|$)/.test(p);   // hidden files and folders stay out of an app's zip
 function walk(dir) {

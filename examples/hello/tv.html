@@ -17,6 +17,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sa
 body { display: -webkit-box; display: flex; -webkit-box-align: center; align-items: center; -webkit-box-pack: center; justify-content: center; text-align: center; transition: background-color .6s ease; }
 h1 { margin: 0; font-size: 14vh; font-weight: 700; letter-spacing: -.02em; }
 p { margin: 3vh 0 0; font-size: 4vh; opacity: .75; }
+.tall h1 { font-size: 10vh; } .tall p { font-size: 3.4vh; padding: 0 6vw; }   /* one half of a split screen, its own tall shape (lamba.json "split": "tall") */
 .wave { display: inline-block; width: .8em; height: .8em; vertical-align: -.06em; -webkit-transform-origin: 70% 90%; transform-origin: 70% 90%; -webkit-animation: wave .9s ease; animation: wave .9s ease; }
 @-webkit-keyframes wave { 30% { -webkit-transform: rotate(18deg); } 60% { -webkit-transform: rotate(-12deg); } }
 @keyframes wave { 30% { transform: rotate(18deg); } 60% { transform: rotate(-12deg); } }
@@ -37,6 +38,9 @@ p { margin: 3vh 0 0; font-size: 4vh; opacity: .75; }
     var words = function () { var r = document.getElementById("words").getBoundingClientRect(), w = innerWidth || 1, h = innerHeight || 1; return [r.left / w, r.top / h, r.right / w, r.bottom / h]; };
     var card = function () { if (L.screen.view === "screen") L.joinCard({ show: true, size: L.players.length ? "corner" : "full", line: "Scan to wave", avoid: words() }); };
     L.onSettings(paint); L.onPlayers(card); L.store.on(count);
+    // a half of a split screen (Lamba.layout): this page has the half's own tall shape, so the words get a little smaller
+    var shape = function (l) { document.documentElement.classList.toggle("tall", !!(l && l.tall)); card(); };
+    L.onLayout(shape); shape(L.layout);
     var HAND = '<svg class="wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-6-2.3l-3.6-3.6a2 2 0 0 1 2.8-2.8L7 15"/></svg>';
     var wave = function (m, from) {
       var p = L.players.concat(L.visitors || []).filter(function (x) { return x.id === from; })[0], name = p && p.name && L.settings.names ? p.name : "";

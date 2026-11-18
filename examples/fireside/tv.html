@@ -50,7 +50,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #120804; }
   "use strict";
   var LOOK = {   // each fire: the hot middle, the flame, its edge, the room's glow
     logs: { core: [255, 236, 190], mid: [255, 150, 50], edge: [215, 60, 20], glow: "255,140,50", base: .35 },
-    embers: { core: [255, 200, 140], mid: [235, 95, 35], edge: [150, 35, 15], glow: "230,90,30", base: .18 }
+    embers: { core: [255, 200, 140], mid: [235, 95, 35], edge: [150, 35, 15], glow: "230,90,30", base: .18 },
+    // an unlock (lamba.json products "blue-glow"): the Host buys it with Lamba's Extras tile; until then the fire stays Logs
+    glow: { core: [220, 245, 255], mid: [90, 170, 255], edge: [40, 70, 200], glow: "80,150,255", base: .3 }
   };
   var canvas = document.getElementById("scene"), ctx = canvas.getContext("2d");
   var W = 0, H = 0, sprite = null, spriteFor = "";
@@ -58,7 +60,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #120804; }
   Lamba.ready(function (L) {
     var view = L.screen.view, isTv = view === "screen", still = view === "picture";
     var MAXF = view === "preview" ? 40 : 140;   // the most flames at once: the copy on the Host's phone is lighter
-    var look = function () { return LOOK[still && L.screen.picture && L.screen.picture.setting === "flame" ? L.screen.picture.value : L.settings.flame] || LOOK.logs; };
+    // the picture of each choice shows it as it is; the screen shows Blue glow only once the household owns it (Lamba.owns)
+    var look = function () { var k = still && L.screen.picture && L.screen.picture.setting === "flame" ? L.screen.picture.value : L.settings.flame; if (k === "glow" && !still && !L.owns("blue-glow")) k = "logs"; return LOOK[k] || LOOK.logs; };
+    L.onPurchases(function () { spriteFor = ""; });   // bought (or refunded): draw the fire again in its look
 
     // ---- the size: the page's own shape, drawn small (at most 270 lines), never stretched ----
     function size() {

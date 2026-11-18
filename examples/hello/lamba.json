@@ -7,6 +7,7 @@
  "about": "Players wave from their phones and the screen waves back",
  "icon": "icon.svg",
  "tint": "#2a6f8f",
+ "split": "tall",
  "screens": {
   "tv": "tv.html",
   "phone": "phone.html"

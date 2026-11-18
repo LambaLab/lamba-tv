@@ -11,6 +11,15 @@ check and a person at Lamba refuse an app that breaks one. Read them first if yo
 
 The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). The kit has no copy of them.
 
+
+**Who you work for.** Most people building Lamba apps have never coded. Lead them through every step in plain words,
+one step at a time, and do every step you can yourself. Never end a turn by handing them a technical task ("download
+the zip and upload it", "run this command", "Lamba isn't connected here") when you could do it or walk them through it.
+If Lamba is not connected when the app is ready, say what connecting gives them in one sentence, ask "Shall I connect
+Lamba now? It's one tap", and on yes run the right way from "Connect Lamba, you lead" yourself, post the link, wait,
+then carry on (upload, preview link, submit). If they say not now, ask again at the next step that needs it. A zip
+download is the last resort, only if every way to connect fails, and then you explain each tap.
+
 ## Steps
 
 0. **Update the kit.** At the start of every session, and whenever a tool says a newer kit exists, run `node lamba-update.mjs` first (one line, offline is fine). Never tell the developer something the current kit doesn't say.
@@ -41,7 +50,8 @@ The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file 
    (the screen at both sizes, the Host's phone, the Player's phone, each setting). Fix and run again until summary.md
    says nothing to fix and the screenshots look right: big type readable from the sofa, nothing cut off, nothing
    crowded, the main button where the thumb rests. Then go through the design checklist in `references/review.md`
-   and fix what fails.
+   and fix what fails. Before submitting, run `node lamba-test.mjs <app> --perf` (Lamba's measured review on an old
+   screen) and fix every FIX in its Performance part.
    To play it: the preview link ("Play it" below). On a machine with a browser, `node lamba-test.mjs <app> --serve` also works.
 9. **Clips.** The starter's clips are placeholders, and an upload with them is refused. Run
    `node lamba-clips.mjs <app>`: it plays the app in the simulator (random taps, or `--script steps.json` for a
@@ -86,7 +96,7 @@ After every build or change that passes the check, end your message with a click
 
 When the work reaches a step that needs Lamba (upload, submit, status), or the developer asks what is possible, say it
 in your own words, in one or two plain sentences: connecting Lamba lets you upload the app, send it for review and
-follow the review for them. It is one tap, and signing up is part of it. Ask if they want it. Not before: building,
+follow the review for them. It is one tap, and signing up is part of it. Ask if they want it, and never stop at "not connected": on yes, connect it yourself as below. Not before: building,
 checking, testing, `--serve` and clips need no connection.
 
 On yes, pick the way that fits the tool you run in, and do every step you can yourself:

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Candles</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../shell/sdk/ui.css">
+<!--
+  Candles on the Player's phone (view "guest", the whole phone: a remote). The Host picks the way to play in the Play setting
+  (a tile in the Host's drawer, never buttons of this page); this page has one main action, a big key, for that way.
+  All through Lamba.mic (lamba.json permissions: "microphone"): Lamba asks the person first, shows that it listens, and stops
+  when the phone locks. The app never hears the sound itself:
+    Blow     Lamba.mic.level(fn): a loudness 0 to 1 and a blow; the page streams the loudness to the screen
+    Wish     Lamba.mic.words(): the words only (not on every phone: Lamba.mic.canWords says, and the page offers a message instead)
+    Message  Lamba.mic.record(): Lamba's own sheet records, the Player listens back and sends; the screen hears it by itself
+  Toasts (live voice) need nothing here: when the screen opens it, Lamba puts its hold to talk button at the foot of this page.
+-->
+<style>
+.l-remote { --l-remote: #22121f; --l-remote-hi: #4a2540; --l-key: #ffcf5c; --l-key-hi: #ffe39a; --l-key-edge: #b07d10; --l-key-ink: #2b1d05; --l-me: #ffcf5c; }
+.l-key.l-big[aria-pressed="true"] { --l-key: #ff8a7a; --l-key-hi: #ffb3a8; --l-key-edge: #a8402f; --l-key-ink: #2a0905; }
+.meter { height: 10px; max-width: 320px; width: 100%; margin: 0 auto; border-radius: 5px; background: var(--l-track); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--l-me); border-radius: 5px; transition: width .08s linear; }
+</style>
+</head>
+<body>
+<main class="l-remote">
+  <header class="l-remote-top"><span class="l-remote-who" id="who">You</span><p class="l-remote-say" id="say" role="status"></p></header>
+  <div class="l-remote-main"><div class="l-well"><button class="l-key l-big" id="go" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><span id="golabel">Blow</span></button></div></div>
+  <div class="l-remote-foot"><div class="meter" id="meter" hidden><i id="bar"></i></div></div>
+</main>
+<script src="../../shell/sdk/lamba.js"></script>
+<script src="../../shell/sdk/ui.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var say = function (t) { document.getElementById("say").textContent = t; };
+    var label = function (t) { document.getElementById("golabel").textContent = t; };
+    var press = function (on) { document.getElementById("go").setAttribute("aria-pressed", on ? "true" : "false"); };
+    var me = L.me(); document.getElementById("who").textContent = me ? me.name : "You";
+    var lvl = L.stream("lvl", 15, "tv"), words = L.stream("wish", 5, "tv"), session = null;
+    var way = function () { return L.settings.way === "wish" && L.mic.canWords === false ? "message" : L.settings.way; };   // no words on this phone: a message instead
+    var idle = function () { var w = way(); label(w === "wish" ? "Wish" : w === "message" ? "Record" : "Blow"); press(false); document.getElementById("meter").hidden = true; };
+    var refused = function (why) { stop(); say(why === "host" ? "The Host has the microphone off" : why === "denied" || why === "person" ? "The microphone is off for this app" : "No microphone here"); };
+    function stop() { if (session) { session.stop(); session = null; } idle(); }
+
+    function blow() {
+      document.getElementById("meter").hidden = false; press(true); label("Stop"); say("Blow on your phone");
+      session = L.mic.level(function (v) { document.getElementById("bar").style.width = Math.round(v * 100) + "%"; lvl({ v: v }); });
+      session.on("blow", function (b) { L.send({ type: "blow", strength: b.strength }, "tv"); });
+      session.on("state", function (s, why) { if (s !== "on" && s !== "asking" && s !== "off") refused(why || s); else if (s === "off") { session = null; idle(); say(""); } });
+    }
+    function wish() {
+      press(true); label("Done"); say("Say your wish");
+      session = L.mic.words({ onText: function (t) { words({ text: t, final: false }); say(t); }, onFinal: function (t) { words.flush(); L.send({ type: "wish", text: t, final: true }, "tv"); say(t); stop(); } });
+      session.ready.catch(function (e) { if (e.why === "none" || e.why === "words") { say("Words don't work on this phone"); idle(); } else refused(e.why); });
+    }
+    function message() {
+      say("");
+      L.mic.record({ max: 10 }).then(function (r) { say(r ? "Sent" : ""); }, function (e) { refused(e.why); });
+    }
+    LambaUI.press(document.getElementById("go"), function () {
+      if (session) { stop(); say(""); return; }
+      var w = way(); if (w === "wish") wish(); else if (w === "message") message(); else blow();
+    });
+    L.onSettings(function (s, changed) { if (changed.indexOf("way") > -1) { stop(); say(""); } });
+    idle();
+  });
+})();
+</script>
+</body>
+</html>

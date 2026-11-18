@@ -1,0 +1,182 @@
+{
+ "$schema": "https://lamba.tv/devs/kit/lamba.schema.json",
+ "lamba": 1,
+ "id": "candles",
+ "name": "Candles",
+ "sub": "Blow them out from your phone",
+ "about": "Blow on your phone to put out the candles, say a wish or leave a voice message",
+ "icon": "icon.svg",
+ "card": "card.svg",
+ "tint": [
+  "#ff9a5c",
+  "#2a1530"
+ ],
+ "page": {
+  "facts": [
+   [
+    "Blow",
+    "Your phone",
+    "listens to how loud, nothing else"
+   ],
+   [
+    "Players",
+    "8",
+    "each on their own phone"
+   ],
+   [
+    "Toasts",
+    "Hold to talk",
+    "when the Host turns it on"
+   ]
+  ],
+  "about": [
+   {
+    "h": "Make a wish",
+    "p": "Blow on your phone and the candles on the screen flicker and go out. Say a wish and the words float up, or record a voice message and the screen plays it. The microphone asks first, and only the loudness or the words leave your phone."
+   }
+  ]
+ },
+ "screens": {
+  "tv": "tv.html",
+  "phone": "phone.html"
+ },
+ "players": {
+  "min": 0,
+  "max": 8
+ },
+ "guests": true,
+ "askName": true,
+ "age": "all",
+ "category": "party",
+ "permissions": [
+  "sound",
+  "microphone"
+ ],
+ "outside": [],
+ "settings": {
+  "fields": {
+   "way": {
+    "type": "choice",
+    "default": "blow",
+    "choices": [
+     {
+      "id": "blow",
+      "name": "Blow",
+      "sub": "Blow on the phone to put them out",
+      "picture": {
+       "text": "Blow"
+      }
+     },
+     {
+      "id": "wish",
+      "name": "Wish",
+      "sub": "Say it, the words float up",
+      "picture": {
+       "text": "Wish"
+      }
+     },
+     {
+      "id": "message",
+      "name": "Message",
+      "sub": "Record it, the screen plays it",
+      "picture": {
+       "text": "Message"
+      }
+     }
+    ]
+   },
+   "talk": {
+    "type": "switch",
+    "default": false,
+    "on": {
+     "name": "Toasts on",
+     "sub": "Players hold to talk, the screen plays it",
+     "picture": {
+      "text": "On"
+     }
+    },
+    "off": {
+     "name": "No toasts",
+     "sub": "Only blows, wishes and messages",
+     "picture": {
+      "text": "Off"
+     }
+    }
+   },
+   "candles": {
+    "type": "choice",
+    "default": "seven",
+    "choices": [
+     {
+      "id": "three",
+      "name": "3 candles",
+      "sub": "Quick to blow out",
+      "picture": "live"
+     },
+     {
+      "id": "seven",
+      "name": "7 candles",
+      "sub": "A real puff",
+      "picture": "live"
+     },
+     {
+      "id": "twelve",
+      "name": "12 candles",
+      "sub": "Everyone together",
+      "picture": "live"
+     }
+    ]
+   }
+  },
+  "groups": [
+   {
+    "key": "way",
+    "label": "Play",
+    "icon": {
+     "icon": "pictures/way.svg"
+    },
+    "parts": [
+     {
+      "setting": "way",
+      "label": "Play"
+     }
+    ]
+   },
+   {
+    "key": "cake",
+    "label": "Cake",
+    "icon": "live",
+    "parts": [
+     {
+      "setting": "candles",
+      "label": "Candles"
+     },
+     {
+      "setting": "talk",
+      "label": "Toasts"
+     }
+    ]
+   },
+   {
+    "host": "frame"
+   },
+   {
+    "host": "mat"
+   },
+   {
+    "host": "brightness"
+   }
+  ]
+ },
+ "frame": "none",
+ "clips": [
+  [
+   "candles-tv",
+   "What the screen shows"
+  ],
+  [
+   "candles-phone",
+   "What a phone does"
+  ]
+ ]
+}

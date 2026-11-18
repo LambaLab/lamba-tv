@@ -14,7 +14,7 @@ https://lamba.tv/devs/docs/design/.
 - [ ] The Host's phone is the live screen and one row of tiles (settings and actions), nothing in between.
 - [ ] Players get a full screen, realistic remote that never scrolls; no clip art, no emoji, no name step of its own.
 - [ ] The screen shows the game. Phones are the controls, not a copy of the screen.
-- [ ] The join card fills the screen while it waits, then moves to a corner.
+- [ ] The join card fills the screen while it waits, then moves to a corner (an ambient app: small in a corner from the start, then the code alone).
 - [ ] Calm colours, strong contrast.
 - [ ] A Player is in with one tap: no forms, no accounts.
 - [ ] It runs on old screens, and the phone page never zooms.

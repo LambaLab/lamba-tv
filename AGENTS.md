@@ -7,8 +7,18 @@ At the start of every session, and whenever a tool says a newer kit exists, run 
 
 The docs are in one place: https://lamba.tv/devs/docs/ (all of them in one file for an AI: https://lamba.tv/devs/llms-full.txt, and through the Lamba MCP server's `lamba_docs`). The kit has no copy of them.
 
+**Who you work for.** Most people building Lamba apps have never coded. Lead them through every step in plain words,
+one step at a time, and do every step you can yourself. Never end a turn by handing them a technical task ("download
+the zip and upload it", "run this command", "Lamba isn't connected here") when you could do it or walk them through it.
+If Lamba is not connected when the app is ready, say what connecting gives them in one sentence, ask "Shall I connect
+Lamba now? It's one tap", and on yes run the right way from "Connect Lamba, you lead" yourself, post the link, wait,
+then carry on (upload, preview link, submit). If they say not now, ask again at the next step that needs it. A zip
+download is the last resort, only if every way to connect fails, and then you explain each tap.
+
 **One app, one function.** Lamba TV apps are small apps that do one thing well: a quiz, a countdown, a drawing game.
-Build the one thing the developer asked for. No menus of games, no extra features, no settings screens of your own.
+One thing means one job: a few tools are fine when they all serve it (Meeting Room shares a screen, lets people point
+and draw on it, and has a room mic: one meeting). Something people may want beside it is its own app (a whiteboard),
+which the Host puts next to it on the screen. Build the one thing the developer asked for. No menus of games, no extra features, no settings screens of your own.
 
 ## What a Lamba app is
 
@@ -66,13 +76,20 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
    `devicemotion` yourself. Start from a tap, handle `"finger"`, `"denied"` and no camera with a touch way to play, offer front
    and back (`Lamba.track.cameras()`), and send the screen small messages with `Lamba.stream("name", 20, "tv")`, never whole frames (it goes straight over the Wi-Fi when it can and through the room when not; use `Lamba.send` for what must arrive, once). Ask `Lamba.track.start` only for what you use (`pose: false` for a hand game); `model` and `delegate` are left alone unless you know why.
    The camera picture never leaves the phone. The simulator makes up both sensors, so `node lamba-test.mjs` can run the game.
+   **The microphone only through Lamba, too.** Declare `"microphone"`. On a phone page: `Lamba.mic.level(fn)` (a loudness 0 to 1 and a
+   blow), `Lamba.mic.words({ onText, onFinal })` (speech to text; check `Lamba.mic.canWords`), `Lamba.mic.record({ max })` (Lamba's own
+   sheet, resolves `{ id }` once sent). On the screen page: `Lamba.voice.on("message")` and `Lamba.voice.play(id)`, and
+   `Lamba.voice.live({ talkers: 1 })` for live voice (Lamba draws the hold to talk on the phones; never draw one). Never `getUserMedia`,
+   `SpeechRecognition` or `MediaRecorder` yourself. Start from a tap, `stop()` when done, handle `"denied"`, `"host"` and `"none"` with
+   another way to play, say on the app's page what it listens for, and keep a kids app working with live voice off.
 9. **Words people read:** no en dash or em dash anywhere (use a comma or a full stop), "they" for one person, plain
    short sentences, never the one word Lamba avoids for many colours (say "every colour"). Any set of animals
    includes a sloth. Every list of colours ends with "pick your own colour". Choosing a sound in your own app part (phone.html) plays a short sample.
 10. **Big and calm on the screen.** Size type by screen height (`vh`): headings 10 to 14 vh, body at least 4 vh. Motion
    is slow and stops under `prefers-reduced-motion`. Safe for a family room: no violence, fear, ads or purchases.
    The screen page is not always the whole screen (a second app may sit beside or under it): never assume 16:9, and lay
-   out again on `Lamba.onScreen`.
+   out again on `Lamba.onScreen`. A screen is always landscape: on a phone held upright Lamba turns the whole screen
+   sideways, so your screen page always gets a landscape size.
 11. **Settings the host's way.** A change waits on the Host's phone until they tap "Send to screen". Mark a field
    `"apply": "now"` only for who may join, for how long, and the sound, never the look. A choice for nothing is
    named `"None"` with no picture: the host draws its one "no" sign. The host adds "Try as a player", "Scribble" and
@@ -99,8 +116,22 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
     in a group part (`"players": true` for Players too), or several side by side in one part (`{ "label": "Photos", "photos": [{ "setting": "left", "label": "Left" }, ...] }`): Lamba shows the picker and the crop; your app just draws the URL in `Lamba.settings`
     and an empty frame while it is `""`. Never build your own `<input type=file accept=image>` for it. A picture with parts people may place declares a `transforms` field and tells the host where the parts are with
     `Lamba.parts` (the phone's copy of the screen then gets selection handles to move, size and turn them); `"multiline": true`
-    keeps the line breaks that your own app part sends with `LambaUI.textarea`; the drawer's own field is one line; an app that starts without a frame says `"frame": "none"` in lamba.json. Work that takes
+    keeps the line breaks that your own app part sends with `LambaUI.textarea`; the drawer's own field is one line; every app starts without a frame (the Host can add one); `"frame": "lamba"` in lamba.json starts it in Lamba's slim frame. Work that takes
     time (a photo's outlines, a font's letters) shows a loader and runs in small steps, never one long pause.
+
+## Paid apps (lamba.tv/devs/docs/monetize/)
+
+Only when the developer asks for money. Lamba sells for every app; you never take a payment.
+
+- Declare it in lamba.json: `"price"` (buy once), or `"subscription": { "monthly", "yearly", "trialDays" }`, plus any
+  `"products"` (unlocks: `{ "id", "name", "price", "description", "trialDays"? }`). Prices are US cents from Lamba's tiers
+  only (`lamba_rules` lists them). A paid app also says `"preview": { "mode": "free" | "time" | "locked" }`.
+- Read what the home owns on every page: `Lamba.owns(id)`, `Lamba.purchases`, `Lamba.onPurchases(fn)`. Redraw when it changes.
+- Buy only from the Host's phone page: `Lamba.buy(id)` opens Lamba's sheet (price and what you get before the tap). Never on
+  the screen page, never for a Player, never in a kids app's Player view. Lamba's own "Unlock" or "Extras" tile also sells it.
+- Never: Stripe, PayPal, Apple Pay or PaymentRequest code, card fields, links to payment or tip pages, prices drawn by the
+  app, fake countdowns, "only N left", nagging. `lamba check` refuses payment code; review refuses dark patterns.
+- What was bought keeps working on every screen of the home. Never lock away something the Host already had for free.
 
 ## You cannot change the platform
 
@@ -127,6 +158,11 @@ just say yes):
 - Public on Lamba, or private to their organization?
 - Its name?
 - Do Players join from their phones? How many?
+- Sound and pictures that move? Say what Lamba can do and suggest what fits the idea (or none):
+  - **sounds**: the app's own sound files on the screen (taps, wins, a countdown's last seconds, music in the background);
+  - **films**: short looping videos on the screen (a fire, the sea), as Lamba's `.film` files;
+  - **live video**: a phone's camera or a computer's screen shown live on the screen, with its sound;
+  - **live voice**: hold to talk from a phone, heard on the screen, with captions.
 
 Then build, and never ask these again. What each answer sets:
 
@@ -139,10 +175,14 @@ Then build, and never ask these again. What each answer sets:
 | private | only people at their email's domain, or named emails; the automatic check only, no review: `lamba_private`, then `lamba_make_live` |
 | the name | `name` (24 letters), and the id from it |
 | phones, players | `guests` and `players` `{ min, max }` (0 when only the Host's phone controls it) |
+| sounds | `"sound"` in `permissions` and the sound files in the app's folder (see Sound in SDK.md); none: leave it out |
+| films | `"sound"` only if they have sound; the films made with `lamba-film.mjs` (see FILMS.md) |
+| live video | `"video"` in `permissions`, `Lamba.video.live(...)` (see Live video in SENSORS.md) |
+| live voice | `"microphone"` in `permissions`, `Lamba.voice.live(...)` (see SENSORS.md) |
 
 12. **Art fills the screen.** An ambient art app (a fireplace, an aquarium, scenery, a picture, a clock that is a picture)
-    fills the whole screen edge to edge by default: the screen is the art, with no panel on a wall inside it. Say
-    `"frame": "none"` in lamba.json, cover the page (scale by the larger of width and height, crop what overflows, never
+    fills the whole screen edge to edge by default: the screen is the art, with no panel on a wall inside it. Lamba
+    draws no frame unless the Host adds one; cover the page (scale by the larger of width and height, crop what overflows, never
     letterbox), and keep words and anything to read inside a 5% safe margin. A framed or fit choice may be a setting, with
     fill as its default. A part with its own shape (a mantel, a frame, a lamp, a clock face) keeps its proportions: size it
     from the page and never stretch it, while the scene fills. Verify the real content bounds, not the idea of them: the
@@ -166,6 +206,9 @@ Work in this order and do not skip a step:
    the sheet up and down, 44 px targets, equal keys, nothing moving under a finger): copy the skill's `templates/phone-viewports.test.mjs`
    next to `lamba-test.mjs` and run `node phone-viewports.test.mjs <app>`.
    First time: `npm install` then `npx playwright install chromium`.
+   Before submitting: `node lamba-test.mjs <app> --perf`, the measured review Lamba runs on every submitted version (an old screen
+   for a minute: loops that never stop, styles or a CSS filter written every frame, timers that redraw the scene, the film, sound,
+   the Player's remote). Fix every FIX in its Performance part; `perf-prompt.txt` lists each finding with its place and fix.
    To play it: the preview link ("Play it" below). On a machine with a browser, `node lamba-test.mjs <app> --serve` also works.
 5. **Look** at the screenshots yourself and read summary.md. Fix what is marked FIX, page errors, refusals, and
    anything that looks wrong, small or crowded. Then check and test again.
@@ -176,7 +219,8 @@ Work in this order and do not skip a step:
    - The screen shows the game. Phones are the controls, not a copy of the screen.
    - The Host's phone is the live screen and one row of tiles (settings and actions), nothing in between.
    - Players get a full screen, realistic remote that never scrolls; no clip art, no emoji, no name step of its own.
-   - The join card fills the screen while it waits, then moves to a corner.
+   - The join card fills the screen while it waits, then moves to a corner (an ambient app: Lamba keeps it small in a corner,
+     then the code alone; ask for "full" and "corner" as usual).
    - Calm colours, strong contrast.
    - A Player is in with one tap: no forms, no accounts.
    - It runs on old screens, and the phone page never zooms.
@@ -191,13 +235,17 @@ Work in this order and do not skip a step:
    **Films:** a looping scene is made with `node lamba-film.mjs <video> --name <name> --out <app>/films` (the 1080 film, its
    720 and 360 copies, a still): https://lamba.tv/devs/docs/films/. `node lamba-check.mjs` says exactly what is missing.
    Switch recordings with `film.load(url)` (each starts fresh at the best quality). Art that needs HD sets
-   `{ minQuality: 720 }`: never the 360 copy, the still picture instead. Never patch shell/film.js or the SDK.
+   `{ minQuality: 720 }`: it starts at 720 or more, and goes lower only on a screen measured too slow for it (a smooth
+   lighter copy beats a jerky HD one). Keep the 720 and 360 copies and the pictures anyway. Never change a CSS `filter` on the
+   film canvas every frame, and run spark loops only while something moves. Never patch shell/film.js or the SDK.
 8. **Upload** only when check, test and the checklist pass: `node lamba-check.mjs <app> --upload` (needs the connection: "Connect Lamba" below), or the
    `lamba_upload` tool. Read the result and `lamba_status`.
 9. **Submit from the answers.** When the developer wants to submit: `lamba_listing`. Fill its gaps from the first
    answers and the app (write the texts yourself), and ask only what is still unknown (who made it: `lamba_profile`).
    Upload again, show a short summary of what players will see, and when they say yes: `lamba_submit`, or for a
    private app `lamba_private` then `lamba_make_live`.
+   The name can also change on lamba.tv/devs (Rename on the app's page), and that name wins. `lamba_listing` and
+   `lamba_status` give the current name: keep lamba.json `name` the same, and change it there when the developer renames.
 
 ## Play it, every time
 
@@ -220,7 +268,7 @@ After every build or change that passes the check, end your message with a click
 
 When the work reaches a step that needs Lamba (upload, submit, status), or the developer asks what is possible, say it
 in your own words, in one or two plain sentences: connecting Lamba lets you upload the app, send it for review and
-follow the review for them. It is one tap, and signing up is part of it. Ask if they want it. Not before: building,
+follow the review for them. It is one tap, and signing up is part of it. Ask if they want it, and never stop at "not connected": on yes, connect it yourself as below. Not before: building,
 checking, testing, `--serve` and clips need no connection.
 
 On yes, pick the way that fits the tool you run in, and do every step you can yourself:

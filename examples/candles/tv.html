@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candles</title>
+<link rel="stylesheet" href="/fonts/css2?family=Figtree:wght@500;700&display=swap">
+<!--
+  Candles, the screen page: a cake whose candles the Players blow out from their phones.
+
+  How it works (lamba.json permissions: "microphone"; docs/sdk/SENSORS.md, Microphone):
+    - Each phone keeps its own microphone (phone.html, Lamba.mic). It sends the screen only small messages:
+        { type: "lvl", v }            how loud it hears, 0 to 1, 15 times a second (Lamba.mic.level and Lamba.stream)
+        { type: "blow", strength }    a blow: loud noise for a moment, not a voice
+        { type: "wish", text, final } words (Lamba.mic.words): what was said so far, then the whole wish
+    - A voice message (Lamba.mic.record on the phone) comes here by itself: Lamba.voice.on("message") gives its id and
+      Lamba.voice.play(id) plays it through this page's sound, at the Host's volume.
+    - Toasts (the "talk" setting): Lamba.voice.live() opens live voice. Lamba draws the hold to talk button on the phones and
+      plays the voice here; this page only hears who talks (Lamba.voice.on("talk")) to light the cake for them.
+  Old screen browsers (Chrome 61): ES5 only.
+-->
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; font-family: Figtree, sans-serif; background: #160b1a; color: #fff4e8; }
+canvas { display: block; width: 100%; height: 100%; }
+#wish { position: fixed; left: 8vw; right: 8vw; bottom: 9vh; text-align: center; font-size: 5.2vh; font-weight: 700; line-height: 1.2; opacity: 0; transition: opacity .6s ease, transform 2.4s ease; }
+#note { position: fixed; left: 0; right: 0; top: 6vh; text-align: center; font-size: 3.6vh; font-weight: 500; opacity: .8; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas><div id="note"></div><div id="wish"></div>
+<script src="../../shell/sdk/lamba.js"></script>
+<script>
+(function () {
+  "use strict";
+  Lamba.ready(function (L) {
+    var cv = document.getElementById("c"), g = cv.getContext("2d"), W = 0, H = 0, picture = L.screen.view === "picture" || L.screen.preview;
+    var level = 0, levelAt = 0, lit = [], glow = 0, talking = 0, out = 0, queue = [], playing = false;
+    var note = function (t) { document.getElementById("note").textContent = t; };
+    function size() { W = cv.width = cv.clientWidth; H = cv.height = cv.clientHeight; }
+    function light() { lit = []; var n = { three: 3, seven: 7, twelve: 12 }[L.settings.candles] || 7; for (var i = 0; i < n; i++) lit.push(1); out = 0; }
+    size(); light(); window.addEventListener("resize", size);
+
+    // the phones' loudness and blows: the loudest phone bends the flames, a blow puts one out (a strong one, two)
+    L.on("lvl", function (m) { var v = Math.max(0, Math.min(1, +m.v || 0)); if (v > level || Date.now() - levelAt > 300) { level = v; levelAt = Date.now(); } });
+    L.on("blow", function (m) {
+      var n = (+m.strength || 0) > 0.8 ? 2 : 1;
+      for (var i = 0; i < lit.length && n > 0; i++) if (lit[i] === 1) { lit[i] = 0.99; n--; }
+    });
+    // a wish: the words float up, then fade
+    var wishEl = document.getElementById("wish"), wishT = 0;
+    L.on("wish", function (m) {
+      wishEl.textContent = String(m.text || "").slice(0, 140); wishEl.style.opacity = "1"; wishEl.style.transform = "translateY(0)";
+      clearTimeout(wishT); if (m.final) wishT = setTimeout(function () { wishEl.style.opacity = "0"; wishEl.style.transform = "translateY(-12vh)"; }, 3500);
+    });
+    // voice messages: one at a time, in the order they came
+    function next() {
+      if (playing || !queue.length) return;
+      var v = queue.shift(), who = L.players.filter(function (p) { return p.id === v.from; })[0];
+      playing = true; note(who && who.name ? "A message from " + who.name : "A message"); glow = 1;
+      L.voice.play(v.id).then(function () { playing = false; note(""); next(); }, function () { playing = false; note(""); next(); });
+    }
+    L.voice.on("message", function (v) { queue.push(v); next(); });
+    // toasts: live voice while the setting is on (Lamba's own button on the phones); the cake glows for whoever talks
+    L.voice.on("talk", function (t) { talking = Math.max(0, talking + (t.on ? 1 : -1)); });
+    var liveOn = null;
+    function live() {
+      if (picture) return;
+      var want = !!L.settings.talk; if (want === liveOn) return; liveOn = want;
+      if (want) L.voice.live({ talkers: 1, max: 30, silence: 5 }).then(function (s) { if (s === "none") note(""); }); else L.voice.live(false);
+    }
+    L.onSettings(function (s, changed) { if (changed.indexOf("candles") > -1) light(); live(); });
+    live();
+
+    function flame(x, y, s, bend, a) {
+      g.save(); g.translate(x, y); g.globalAlpha = a;
+      var r = g.createRadialGradient(0, -s * 0.6, 0, 0, -s * 0.6, s * 2.2); r.addColorStop(0, "rgba(255,200,90,.35)"); r.addColorStop(1, "rgba(255,200,90,0)");
+      g.fillStyle = r; g.beginPath(); g.arc(0, -s * 0.6, s * 2.2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#ffcf3f"; g.beginPath(); g.moveTo(0, 0);
+      g.quadraticCurveTo(s * 0.7 + bend * s, -s * 0.6, bend * s * 1.6, -s * 1.7); g.quadraticCurveTo(-s * 0.7 + bend * s, -s * 0.6, 0, 0); g.fill();
+      g.restore();
+    }
+    function draw() {
+      var t = Date.now() / 1000; if (Date.now() - levelAt > 400) level *= 0.9;
+      g.clearRect(0, 0, W, H);
+      var bg = g.createRadialGradient(W / 2, H * 0.6, 0, W / 2, H * 0.6, Math.max(W, H) * 0.7); bg.addColorStop(0, talking || glow > 0.05 ? "#5a2c4c" : "#3a1d36"); bg.addColorStop(1, "#160b1a");
+      g.fillStyle = bg; g.fillRect(0, 0, W, H); glow *= 0.985;
+      var cw = Math.min(W * 0.6, H * 0.9), cx = W / 2, top = H * 0.58, ch = H * 0.22;
+      g.fillStyle = "rgba(0,0,0,.3)"; g.beginPath(); g.ellipse(cx, top + ch + H * 0.03, cw * 0.58, H * 0.035, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#fff4e8"; g.fillRect(cx - cw / 2, top, cw, ch);
+      g.fillStyle = "#ffb7c9"; g.fillRect(cx - cw / 2, top, cw, ch * 0.22);
+      var n = lit.length, step = cw / (n + 1), s = Math.min(step * 0.32, H * 0.045), still = 0;
+      for (var i = 0; i < n; i++) {
+        var x = cx - cw / 2 + step * (i + 1), y = top - H * 0.09;
+        g.fillStyle = "#ffe7cf"; g.fillRect(x - s * 0.28, y, s * 0.56, H * 0.09);
+        if (lit[i] < 1 && lit[i] > 0) lit[i] = Math.max(0, lit[i] - 0.06);
+        if (lit[i] > 0) { still++; flame(x, y, s * (0.9 + 0.1 * Math.sin(t * 7 + i)), Math.sin(t * 3 + i) * 0.12 + level * 0.9, lit[i]); }
+      }
+      if (!still && n) { if (!out) { out = Date.now(); note("Happy birthday"); } else if (Date.now() - out > 6000) { light(); note(""); } }
+      requestAnimationFrame(draw);
+    }
+    draw();
+    L.joinCard({ show: !picture, size: "corner", line: "Scan to blow" });
+    L.drawn();
+  });
+})();
+</script>
+</body>
+</html>

@@ -203,6 +203,32 @@ The frame is landmarks and gesture names (`f.hands[0].shape`: `fist`, `palm`, `p
 picture. The screen page gets small messages, never frames. In the simulator both sensors are made up (the Phone sensors panel),
 and `lamba-test.mjs` runs them. See docs "Motion and camera" and the example `move-and-pop`.
 
+## The microphone (lamba.json "permissions": ["microphone"])
+
+```js
+// a phone page: loudness and a blow (Lamba asks first and shows its sign; only the number leaves the phone)
+var lvl = Lamba.stream("lvl", 15, "tv"), s = null;
+go.onclick = function () {
+  if (s) { s.stop(); s = null; return; }
+  s = Lamba.mic.level(function (v) { lvl({ v: v }); });
+  s.on("blow", function (b) { Lamba.send({ type: "blow", strength: b.strength }, "tv"); });
+  s.on("state", function (st) { if (st === "denied" || st === "host" || st === "none") { s = null; useButtons(); } });
+};
+// words (not on every phone), and a voice message as the other way
+if (Lamba.mic.canWords) Lamba.mic.words({ onFinal: function (t) { Lamba.send({ type: "said", text: t }, "tv"); } });
+else Lamba.mic.record({ max: 10 }).then(function (r) { if (r) say("Sent"); }, useButtons);
+```
+
+```js
+// the screen page: voice messages come by themselves; live voice is Lamba's own hold to talk on the phones
+Lamba.voice.on("message", function (m) { Lamba.voice.play(m.id); });
+Lamba.voice.live({ talkers: 1 }).then(function (st) { if (st === "none") hint(""); });   // "none": this screen cannot play it (it says so)
+Lamba.voice.on("talk", function (t) { glow(t.from, t.on); });
+```
+
+Never draw a record or talk button, an ask sheet or a listening sign: Lamba does. See docs "Motion, camera and microphone" and the
+example `candles`.
+
 ## Players and seats (lamba.json)
 
 Game seats (`players`, 50 at most) are for games; many people sending a little (fan a fire, cheer, vote) are an audience:

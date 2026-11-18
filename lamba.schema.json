@@ -2,7 +2,7 @@
  "$schema": "https://json-schema.org/draft/2020-12/schema",
  "$id": "https://lamba.tv/devs/kit/lamba.schema.json",
  "title": "lamba.json, version 1",
- "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a photo setting's aspect is between 1:4 and 4:1; a colours setting's default holds min to max colours; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; a part's photos name photo settings (type photo), each used once; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; a group with players true needs guests true, holds settings only (no app part, no strokes or transforms); action keys are used once and are not group keys; a group's action names one of actions, once; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
+ "description": "What a Lamba TV app is, what it shows, who takes part, what it may use, and its settings (https://lamba.tv/devs/docs/manifest/). Made from Lamba's own rules (tools/sdk_rules.mjs). lamba-check.mjs also checks what a schema can't: players.min is at most players.max; a choice setting's default is one of its choices, and each choice id is used once; a number setting has min below max, its default between them, and one label per step; a text setting's default is no longer than its max; a photo setting's aspect is between 1:4 and 4:1; a colours setting's default holds min to max colours; a list setting's min is at most its max, and its default and presets hold only ids from of, as many as min to max; a part's photos name photo settings (type photo), each used once; resets name other settings; a part's setting is one of settings.fields; every setting is in a group unless hidden; group keys are used once, and a group's part keys once; an app part (parts[].app) needs screens.phone; a group with players true needs guests true, holds settings only (no app part, no strokes or transforms); action keys are used once and are not group keys; a group's action names one of actions, once; the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name; an app is bought once (price) or subscribed to (subscription), not both; subscription.yearly costs less than 12 months of monthly; a paid app has a preview, and preview is only for a paid one; outside never names a payment service; a product's id is used once and is not \"app\"; on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has.",
  "x-checker-only": [
   "players.min is at most players.max",
   "a choice setting's default is one of its choices, and each choice id is used once",
@@ -18,6 +18,8 @@
   "a group with players true needs guests true, holds settings only (no app part, no strokes or transforms)",
   "action keys are used once and are not group keys; a group's action names one of actions, once",
   "the files lamba.json names are in the folder (icon, card, clips, pictures), and id is the folder's name",
+  "an app is bought once (price) or subscribed to (subscription), not both; subscription.yearly costs less than 12 months of monthly; a paid app has a preview, and preview is only for a paid one; outside never names a payment service",
+  "a product's id is used once and is not \"app\"",
   "on upload: real clips (not the starter's placeholders), no stagingOnly, listed: false or legacy, an id no one else has"
  ],
  "type": "object",
@@ -373,9 +375,12 @@
      "sound",
      "camera",
      "motion",
-     "country"
+     "country",
+     "microphone",
+     "video"
     ]
-   }
+   },
+   "description": "What the app may ask for: sound, camera, motion, country, microphone, video. \"camera\": the picture never leaves the phone (Lamba.track). \"video\": Lamba shows a live camera or screen picture on the screen (Lamba.video.live), only after a tap on Lamba's own button"
   },
   "outside": {
    "type": "array",
@@ -397,9 +402,19 @@
   "liveCard": {
    "type": "boolean"
   },
+  "split": {
+   "enum": [
+    "tall",
+    "letterbox"
+   ],
+   "description": "Split screen (two apps, one in each half): \"letterbox\" (the default) shows the whole 16:9 screen page scaled into the half; \"tall\" gives the page the half's own shape (half the width, the whole height) and Lamba.layout says so"
+  },
   "frame": {
-   "const": "none",
-   "description": "\"none\": the app starts without a frame or mat (the Host can still pick one)"
+   "enum": [
+    "none",
+    "lamba"
+   ],
+   "description": "Left out or \"none\": the app starts without a frame or mat (the Host can still pick one). \"lamba\": it starts in Lamba's slim frame on a warm mat"
   },
   "position": {
    "type": "object",
@@ -557,6 +572,165 @@
      ]
     }
    }
+  },
+  "price": {
+   "enum": [
+    99,
+    199,
+    299,
+    399,
+    499,
+    699,
+    999,
+    1499,
+    1999,
+    2999,
+    4999
+   ],
+   "description": "Buy the app once: a Lamba price tier in US cents (299 is $2.99). Lamba sells it on the Host's phone with its own payment sheet (docs MONETIZE.md)"
+  },
+  "subscription": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "monthly": {
+     "enum": [
+      99,
+      199,
+      299,
+      399,
+      499,
+      699,
+      999,
+      1499
+     ]
+    },
+    "yearly": {
+     "enum": [
+      999,
+      1499,
+      1999,
+      2999,
+      3999,
+      4999,
+      6999,
+      9999
+     ]
+    },
+    "trialDays": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 90
+    }
+   },
+   "anyOf": [
+    {
+     "required": [
+      "monthly"
+     ]
+    },
+    {
+     "required": [
+      "yearly"
+     ]
+    }
+   ],
+   "description": "Subscribe monthly, yearly or both (Lamba price tiers in US cents), with an optional free trial. The Host can cancel any time"
+  },
+  "products": {
+   "type": "array",
+   "maxItems": 20,
+   "description": "In-app unlocks, each bought once by the Host and kept for good (Lamba.buy(id) on the Host's phone)",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "price",
+     "description"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,31}$"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 30,
+      "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+      "description": "Words people read: at most 30 characters, no en or em dash"
+     },
+     "price": {
+      "enum": [
+       99,
+       199,
+       299,
+       399,
+       499,
+       699,
+       999,
+       1499,
+       1999
+      ]
+     },
+     "description": {
+      "type": "string",
+      "maxLength": 90,
+      "pattern": "^(?![\\s\\S]*[\\u2013\\u2014])(?![\\s\\S]*\\b[rR][aA][iI][nN][bB][oO][wW]\\b)[\\s\\S]*\\S[\\s\\S]*$",
+      "description": "Words people read: at most 90 characters, no en or em dash"
+     },
+     "kind": {
+      "const": "unlock"
+     },
+     "trialDays": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 30
+     }
+    }
+   }
+  },
+  "preview": {
+   "type": "object",
+   "required": [
+    "mode"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "mode": {
+     "enum": [
+      "free",
+      "time",
+      "locked"
+     ]
+    },
+    "minutes": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 60
+    }
+   },
+   "if": {
+    "properties": {
+     "mode": {
+      "const": "time"
+     }
+    }
+   },
+   "then": {
+    "required": [
+     "minutes"
+    ]
+   },
+   "else": {
+    "not": {
+     "required": [
+      "minutes"
+     ]
+    }
+   },
+   "description": "What a paid app does before it is bought: free (the app decides with Lamba.purchases), time (Lamba lets it run minutes a day) or locked (Lamba shows its card until the Host buys)"
   },
   "settings": {
    "type": "object",
@@ -922,6 +1096,85 @@
     }
    },
    "description": "forPlayers: Players join the app, guests true"
+  },
+  {
+   "if": {
+    "required": [
+     "guests",
+     "forPlayers"
+    ],
+    "properties": {
+     "guests": {
+      "const": true
+     },
+     "forPlayers": {
+      "minItems": 1
+     }
+    }
+   },
+   "then": {
+    "required": [
+     "players"
+    ],
+    "properties": {
+     "players": {
+      "properties": {
+       "max": {
+        "minimum": 1
+       }
+      }
+     }
+    }
+   },
+   "description": "forPlayers: only Players see them, so players.max is 1 or more"
+  },
+  {
+   "if": {
+    "required": [
+     "guests",
+     "settings"
+    ],
+    "properties": {
+     "guests": {
+      "const": true
+     },
+     "settings": {
+      "required": [
+       "groups"
+      ],
+      "properties": {
+       "groups": {
+        "contains": {
+         "type": "object",
+         "required": [
+          "players"
+         ],
+         "properties": {
+          "players": {
+           "const": true
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "then": {
+    "required": [
+     "players"
+    ],
+    "properties": {
+     "players": {
+      "properties": {
+       "max": {
+        "minimum": 1
+       }
+      }
+     }
+    }
+   },
+   "description": "Settings marked players true: only Players see them, so players.max is 1 or more"
   },
   {
    "if": {

@@ -15,7 +15,7 @@ type Role = "tv" | "owner" | "guest";
 type To = "" | "all" | "phones" | "guests" | "players" | "visitors" | string;
 /** One setting's value: a choice id, a switch, a number, text, a list of ids, or a colour "#rrggbb". */
 type SettingValue = string | number | boolean | string[] | { [id: string]: { x: number; y: number; s: number; r: number } } | { tubes: { c: number; p: number[]; z: 0 | 1 }[]; names: string[] };
-type Permission = "sound" | "camera" | "motion" | "country";
+type Permission = "sound" | "camera" | "motion" | "country" | "microphone" | "video";
 type PermissionState = "granted" | "prompt" | "denied";
 
 interface LambaScreen {
@@ -160,6 +160,20 @@ interface LambaFontPicker {
 }
 
 /** The shared controls (shell/sdk/ui.js). fontPicker and hold are typed here; the rest are in docs/sdk/UI.md. */
+interface LambaPurchases {
+  /** The app itself costs money (price or subscription). */
+  paid: boolean;
+  /** The household may use the whole app: bought, subscribed (a trial, a grace period or a cancelled one until it ends), or the app is free. */
+  owned: boolean;
+  plan: "monthly" | "yearly" | null;
+  state: "bought" | "trial" | "active" | "grace" | "canceled" | "expired" | null;
+  until: number | null;
+  /** The unlock ids (lamba.json products) the household has. */
+  unlocks: string[];
+  /** Unlocks in their free try, and when it ends. */
+  trying: { [id: string]: number };
+  preview: { mode: "free" | "time" | "locked"; minutes: number };
+}
 declare var LambaUI: {
   /** A Google font picker: search, kinds (Popular, Script, Handwriting, Display, Sans, Serif, Mono), tiles drawn in each font, then its weights and italic. o.extra: your own list of choices shown first as { id, name, family?, weight?, italic?, draw?(canvas) }. */
   fontPicker(o: { value?: { family?: string; weight?: number; italic?: boolean; id?: string }; sample?: string; extra?: { title?: string; items: object[] }; onChange(v: { family: string; weight: number; italic: boolean; id?: string; kind: string }): void }): LambaFontPicker;
@@ -212,6 +226,69 @@ interface LambaTrack {
   start(o?: LambaTrackOptions): LambaTrackSession;
 }
 
+/** A microphone session's state (docs/sdk/SENSORS.md, Microphone): "asking" (Lamba's sheet or the browser asks), "on", "off" (stopped: by the app,
+ * the person's tap on Lamba's sign, the phone locking), "denied" (said no, or not declared), "host" (the Host turned Players' microphones off),
+ * "none" (no microphone here, or no words: why "words"), "error". */
+type LambaMicState = "asking" | "on" | "off" | "denied" | "host" | "none" | "error";
+interface LambaMicSession {
+  mode: "level" | "words" | "record";
+  state: LambaMicState;
+  /** Resolves once it listens; rejects with an Error whose why says why not. */
+  ready: Promise<LambaMicSession>;
+  on(ev: "state", fn: (state: LambaMicState, why: string) => void): LambaMicSession;
+  /** level only: a blow began (loud noise, not a voice, for a fifth of a second). */
+  on(ev: "blow", fn: (b: { strength: number }) => void): LambaMicSession;
+  stop(): LambaMicSession;
+}
+interface LambaMic {
+  /** The last session's state. */
+  state: LambaMicState;
+  /** Does this phone turn speech into words (false: offer another way); null on the screen. */
+  canWords: boolean | null;
+  /** The loudness, 0 (a quiet room) to 1 (shouting into it), smoothed, about 25 times a second; x.blow is true while a blow lasts. Only the number leaves the phone. */
+  level(fn: (v: number, x: { blow: boolean }) => void, o?: { blow?: boolean }): LambaMicSession;
+  /** Speech to text on the phone: onText gets the words so far, onFinal each finished sentence. Only the words leave the phone. */
+  words(o?: { lang?: string; interim?: boolean; onText?: (text: string) => void; onFinal?: (text: string) => void }): LambaMicSession;
+  /** Lamba's own sheet records up to max seconds (1 to 15, default 10); the person listens back and sends it. Resolves { id, seconds } once sent, null if they closed it; rejects when refused. The screen hears it as a Lamba.voice "message". */
+  record(o?: { max?: number }): Promise<{ id: string; seconds: number } | null>;
+  /** Stops every session of this page. */
+  stop(): LambaSDK;
+}
+interface LambaVoice {
+  /** A voice message came (from: "owner" or a Player's id). */
+  on(ev: "message", fn: (m: { id: string; from: string; seconds: number }) => void): () => void;
+  /** Someone began or stopped talking live (name: "The Host", the Player's name, or ""). */
+  on(ev: "talk", fn: (t: { from: string; name: string; on: boolean }) => void): () => void;
+  /** Live captions (live({ captions: true })): the talker's words so far, from their phone's own speech recognition; final at a sentence's end. */
+  on(ev: "words", fn: (w: { from: string; name: string; text: string; final: boolean }) => void): () => void;
+  on(ev: "live", fn: (state: "on" | "off" | "none") => void): () => void;
+  /** Plays a voice message through this page's sound (the Host's volume); resolves once it ended. volume 0 to 1. */
+  play(id: string, o?: { volume?: number }): Promise<{ seconds: number }>;
+  /** Stops the messages playing now. */
+  stop(): LambaSDK;
+  /** Opens live voice: Lamba's hold to talk on the phones, the voice plays here. talkers 1 to 4 (1), max 5 to 60 seconds (30), silence 2 to 15 (5).
+   * Resolves "on", or "none" when this screen cannot play it (it says so). live(false) ends it. */
+  live(o?: { talkers?: number; max?: number; silence?: number; big?: boolean; captions?: boolean } | false): Promise<"on" | "none" | "off">;
+}
+
+interface LambaVideoRect {
+  /** Fractions of the app's page, 0 to 1: where the picture goes. */
+  x: number; y: number; w: number; h: number;
+  /** "fill": the whole picture with its own soft copy filling the sides (a face held upright on a wide screen); "cover" fills the box and cuts what overflows; "contain" fits the whole picture on black (a shared screen). Left out: fill for a camera, contain for a screen. */
+  fit?: "cover" | "contain" | "fill";
+}
+interface LambaVideo {
+  /** Someone started or stopped showing (from: "owner" or a Player's id; kind: their camera or their screen; slot 0 or 1, the sender's place with senders 2). */
+  on(ev: "show", fn: (s: { from: string; name: string; kind: "camera" | "screen"; on: boolean; slot: number }) => void): () => void;
+  on(ev: "live", fn: (state: "on" | "off" | "none") => void): () => void;
+  /** Opens live video: Lamba's own "Show my camera" or "Share my screen" tap on the phones and computers, and Lamba draws the picture over this page (never a video element of yours).
+   * from: "camera" (phones), "screen" (computers) or "any" (default); senders 1 or 2 at once (default 1); big: the tap is the remote's one big key; audio: the sound goes with the picture (a camera's microphone, a shared tab's sound), played by Lamba at the Host's volume, default false.
+   * Resolves "on", or "none" when this screen cannot show it. live(false) ends it. */
+  live(o?: { from?: "camera" | "screen" | "any"; senders?: 1 | 2; big?: boolean; audio?: boolean } | false): Promise<"on" | "none" | "off">;
+  /** Where Lamba draws the picture: the whole page by default (a half each with senders 2). from: one sender's id (from a "show"); left out: every sender. place(null) puts it back. */
+  place(rect: LambaVideoRect | null, from?: string): LambaSDK;
+}
+
 interface LambaSDK {
   /** The vocabulary's version: 1. */
   v: number;
@@ -232,6 +309,10 @@ interface LambaSDK {
   status: LambaStatus;
   /** "Easier to see": 0 off, 1 on, 2 strongest. */
   see: number;
+  /** Screen: null on the whole screen; in one half of a split screen, which half and its shape (tall: lamba.json "split": "tall"). */
+  layout: { half: "left" | "right"; tall: boolean; scale: number; w: number; h: number } | null;
+  /** Screen: fn(layout) when the screen is split, or whole again. */
+  onLayout(fn: (layout: { half: "left" | "right"; tall: boolean; scale: number; w: number; h: number } | null) => void): LambaSDK;
   /** Screen: where the screen is, only when lamba.json asks for "country"; null otherwise. */
   place: { country: string } | null;
   /** What the host said about each declared permission. */
@@ -268,6 +349,13 @@ interface LambaSDK {
   action(key: string, state: { label?: string; icon?: string; off?: boolean }): LambaSDK;
   /** Phones: { name } the person chose, never an email. null on the screen or when no name was given. */
   me(): { name: string } | null;
+  /** A paid app (lamba.json price, subscription or products): what this household owns, the same on every screen and phone; null for an app with nothing to sell. */
+  purchases: LambaPurchases | null;
+  onPurchases(fn: (p: LambaPurchases | null) => void): LambaSDK;
+  /** True when the household has the app (no id) or that unlock (bought, or in its free try). */
+  owns(id?: string): boolean;
+  /** The Host's phone only: Lamba's payment sheet for the app (no id), "monthly", "yearly" or an unlock id. The screen and Players are always told no ("host"). */
+  buy(id?: string): Promise<{ ok: boolean; why: "" | "cancelled" | "host" | "owned" | "off" }>;
   /** A phone's message always goes to the screen. The screen's goes to `to`. Its type is never "action" (the host's). */
   send(msg: LambaMessage, to?: To): LambaSDK;
   /** Part: change settings; final false while still moving (a slider being dragged). */
@@ -279,7 +367,8 @@ interface LambaSDK {
   /** Screen: a looping film drawn into a canvas (a .film file: H.264 MP4 inside). Never a <video> on a screen page. */
   film(canvas: HTMLCanvasElement, url: string, opts?: LambaFilmOptions): LambaFilm;
   /** Screen: the host's join card with the code people scan. Only for apps guests join. line: at most 60 characters. */
-  joinCard(o: { show?: boolean; size?: "full" | "corner"; line?: string; avoid?: [number, number, number, number] }): LambaSDK;
+  /** The host's join card. An ambient app (categories "ambient", "art" or "clocks") never gets the big card in the middle: "full" shows the corner card for 30 s, then only the small code in that corner; "corner" is the small code at once. side: which bottom corner (default "left"). */
+  joinCard(o: { show?: boolean; size?: "full" | "corner"; line?: string; avoid?: [number, number, number, number]; side?: "left" | "right" }): LambaSDK;
   /** Screen: the in-room question for what is on screen now. */
   question(q: LambaQuestion): LambaSDK;
   /** Screen and picture: the app's main colours, so the frame's Soft and Neon styles match. */
@@ -298,6 +387,12 @@ interface LambaSDK {
   motion: LambaMotion;
   /** Phone views, "camera" declared: body, hands and face as landmarks and gesture names (docs/sdk/SENSORS.md). */
   track: LambaTrack;
+  /** Phone views, "microphone" declared: loudness, words and voice messages; Lamba asks, shows it listens and stops it (docs/sdk/SENSORS.md). */
+  mic: LambaMic;
+  /** The screen, "microphone" declared: voice messages and live voice. */
+  voice: LambaVoice;
+  /** The screen, "video" declared: a live camera or screen picture, drawn by Lamba. */
+  video: LambaVideo;
   /** A sender that keeps to hz messages a second (1 to 30, the latest wins). From a phone to the screen it goes straight over the Wi-Fi when it can (a direct link, no round trip through the room) and through the room when not; your app cannot tell and never needs to: const out = Lamba.stream("pos", 20, "tv"); out({ x, y }). */
   stream(type: string, hz?: number, to?: string): ((data: { [k: string]: unknown }) => void) & { flush(): void };
   /** Phones: every Google font, through Lamba's own address (never straight from Google). */
