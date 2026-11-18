@@ -6041,7 +6041,7 @@ const nameProblem = v => typeof v !== "string" || !v.trim() ? "Give it a name."
 // what the host keeps for itself in every app's settings (the frame round the app, and its brightness)
 const HOST_KEYS = ["frame", "frc", "fw", "mw", "matc", "fday", "fown", "fall", "bright", "pc"];   // pc: the Host lets Players change the settings of the groups marked "players": true
 const TYPES = ["choice", "switch", "number", "text", "list", "colour", "colours", "strokes", "transforms", "photo"];
-const PERMISSIONS = ["sound", "camera", "motion", "country", "microphone", "video"];   // camera: the picture never leaves the phone; video: a live picture shown on the screen (Lamba.video.live)
+const PERMISSIONS = ["sound", "camera", "motion", "country", "microphone", "video", "ink"];   // ink: phone pointers and drawing over the screen (Lamba.ink.live); camera: the picture never leaves the phone; video: a live picture shown on the screen (Lamba.video.live)
 const AGES = ["all", "7+", "13+"];
 // the app's shelf on the phone and the showcase (optional for now; the listing on /devs asks for it)
 const CATEGORIES = ["games", "party", "kids", "learning", "art", "music", "clocks", "calm", "photos", "sports", "tools"];
@@ -6867,7 +6867,7 @@ const M_files = (() => {
 //      the screen page, both only with "microphone"; no speech recognition, recorder or microphone stream of its own. Warnings: listening that
 //      never stops, words with no plan for a phone without speech to text, live voice in a kids app, and a listing that never says it listens
 //      (micModes says which of the four the app uses, for the reviewer). Lamba.video (a live camera or screen shown on the screen) only on the
-//      screen page and only with "video"; getDisplayMedia is the host's, never the app's
+//      screen page and only with "video"; getDisplayMedia is the host's, never the app's. Lamba.ink (phone pointers and pen strokes drawn over the screen) likewise: the screen page only, only with "ink"
 //  10. the Host's phone is the live screen on top and ONE row of tiles (settings, and the app's one tap actions from lamba.json
 //      actions), nothing in between: no controller view, no controls for the Host in phone.html (see controllerRule)
 //  13. every film the pages name (a string ending in .film) is in the folder; its smaller copies (name-720.film, name-360.film, which
@@ -7328,6 +7328,10 @@ function checkFiles(o) {
       if (!perms.includes("video")) say(f + ": uses Lamba.video but lamba.json permissions does not include \"video\" (add it: Lamba shows the picture and asks the person)");
       if (!tvFiles.has(f)) say(f + ": Lamba.video is for the screen page (the phone's own Show my camera and Share my screen controls are Lamba's)");
     }
+    if (/\bLamba\s*\.\s*ink\b|\b[A-Za-z_$][\w$]*\s*\.\s*ink\s*\.\s*(live|place|clear)\s*\(/.test(code)) {
+      if (!perms.includes("ink")) say(f + ": uses Lamba.ink but lamba.json permissions does not include \"ink\" (add it: Lamba draws the pointers and the pen strokes)");
+      if (!tvFiles.has(f)) say(f + ": Lamba.ink is for the screen page (the phone's own pad for pointing and drawing is Lamba's)");
+    }
     if (/\bgetUserMedia\b|\bmediaDevices\b|\bgetDisplayMedia\b/.test(code)) say(f + ": opens the camera or microphone itself (use Lamba.track or Lamba.mic: the host asks the person and the picture or sound stays on the phone)");
     if (/\b(webkit)?SpeechRecognition\b|\bMediaRecorder\b|\bcreateMediaStreamSource\b/.test(code)) say(f + ": listens to the microphone itself (use Lamba.mic: words, loudness or a voice message, and Lamba asks the person first)");
     if (/["'](devicemotion|deviceorientation|deviceorientationabsolute)["']|\b(DeviceMotionEvent|DeviceOrientationEvent)\b/.test(code)) say(f + ": reads the phone's sensors itself (use Lamba.motion: the host asks the person and calms the readings)");
@@ -7654,6 +7658,7 @@ async function checkUpload(bytes, o) {
   notes.push((m.permissions || []).length ? "Asks for: " + m.permissions.join(", ") : "Asks for nothing (no sound, camera, motion, microphone or country)");
   if ((m.permissions || []).includes("microphone")) { const mm = micModes({ paths: files.map(f => f.path), text }); notes.push("Microphone: " + (mm.length ? mm.join(", ") : "declared, but no use found")); }
   if ((m.permissions || []).includes("video")) notes.push("Video: shows a live camera or screen picture on the screen, only after a person taps Lamba's own button" + ((m.category === "kids" || (m.categories || []).includes("kids")) ? " (a kids app: Players' video is off until the Host turns it on)" : ""));
+  if ((m.permissions || []).includes("ink")) notes.push("Ink: phones can point and draw over the screen with Lamba's own pad, and the Host can clear it");
   notes.push((m.outside || []).length ? "Reaches outside Lamba: " + m.outside.join(", ") : "Reaches no address outside Lamba");
   notes.push(m.guests ? "Players join with their phones: up to " + ((m.players || {}).max || 0) + " at once" : "No players: the Host's phone only");
   notes.push(files.length + " files, " + mb(files.reduce((n, f) => n + f.size, 0)));
@@ -7686,7 +7691,7 @@ async function kitNotice(base) {
 // ---------- the command ----------
 // node lamba-check.mjs [folder ...]   with no folder: every folder here that has a lamba.json (or this one)
 // Each folder is checked as Lamba's server checks the zip you upload: the same code (above), on the same files.
-const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-candles","sdk-frames","sdk-hello","sdk-roommic","sdk-showme","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
+const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-candles","sdk-draw","sdk-frames","sdk-hello","sdk-roommic","sdk-showme","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
 const SKIP = n => n === "node_modules" || n.startsWith(".");   // .lamba/ (the key) is hidden, so never in a zip
 const SECRET = p => /(^|\/)\.lamba(\/|$)/.test(p);   // hidden files and folders stay out of an app's zip
 function walk(dir) {

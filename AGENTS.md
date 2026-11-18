@@ -162,7 +162,10 @@ just say yes):
   - **sounds**: the app's own sound files on the screen (taps, wins, a countdown's last seconds, music in the background);
   - **films**: short looping videos on the screen (a fire, the sea), as Lamba's `.film` files;
   - **live video**: a phone's camera or a computer's screen shown live on the screen, with its sound;
-  - **live voice**: hold to talk from a phone, heard on the screen, with captions.
+  - **live voice**: hold to talk from a phone, heard on the screen, with captions;
+  - **pointers and drawing**: a laser pointer from each phone (aim the phone at the screen, hold to draw) over the screen (a shared screen
+    to mark up, a map, a plan), drawn by Lamba.
+- Laptops too? People may join from a laptop as well as a phone (the screen's copy beside their controls), and use both as one person.
 
 Then build, and never ask these again. What each answer sets:
 
@@ -179,6 +182,8 @@ Then build, and never ask these again. What each answer sets:
 | films | `"sound"` only if they have sound; the films made with `lamba-film.mjs` (see FILMS.md) |
 | live video | `"video"` in `permissions`, `Lamba.video.live(...)` (see Live video in SENSORS.md) |
 | live voice | `"microphone"` in `permissions`, `Lamba.voice.live(...)` (see SENSORS.md) |
+| pointers and drawing | `"ink"` in `permissions`, `Lamba.ink.live(...)` on the screen page (see Ink and pointers in SENSORS.md); Lamba draws the pad and the layer |
+| laptops, two devices | nothing to declare: `Lamba.device` ("phone" or "computer"), `Lamba.screen.mirror` (the screen's copy beside the page), `Lamba.players[].person/devices/kinds`, `Lamba.onDevice` | (see SDK.md "A computer as a Player") |
 
 12. **Art fills the screen.** An ambient art app (a fireplace, an aquarium, scenery, a picture, a clock that is a picture)
     fills the whole screen edge to edge by default: the screen is the art, with no panel on a wall inside it. Lamba

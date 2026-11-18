@@ -377,10 +377,11 @@
      "motion",
      "country",
      "microphone",
-     "video"
+     "video",
+     "ink"
     ]
    },
-   "description": "What the app may ask for: sound, camera, motion, country, microphone, video. \"camera\": the picture never leaves the phone (Lamba.track). \"video\": Lamba shows a live camera or screen picture on the screen (Lamba.video.live), only after a tap on Lamba's own button"
+   "description": "What the app may ask for: sound, camera, motion, country, microphone, video, ink. \"camera\": the picture never leaves the phone (Lamba.track). \"video\": Lamba shows a live camera or screen picture on the screen (Lamba.video.live), only after a tap on Lamba's own button. \"ink\": Lamba draws phone pointers and pen strokes over the screen (Lamba.ink.live), with its own pad on the phones"
   },
   "outside": {
    "type": "array",

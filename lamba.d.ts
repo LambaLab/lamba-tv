@@ -15,7 +15,7 @@ type Role = "tv" | "owner" | "guest";
 type To = "" | "all" | "phones" | "guests" | "players" | "visitors" | string;
 /** One setting's value: a choice id, a switch, a number, text, a list of ids, or a colour "#rrggbb". */
 type SettingValue = string | number | boolean | string[] | { [id: string]: { x: number; y: number; s: number; r: number } } | { tubes: { c: number; p: number[]; z: 0 | 1 }[]; names: string[] };
-type Permission = "sound" | "camera" | "motion" | "country" | "microphone" | "video";
+type Permission = "sound" | "camera" | "motion" | "country" | "microphone" | "video" | "ink";
 type PermissionState = "granted" | "prompt" | "denied";
 
 interface LambaScreen {
@@ -25,8 +25,12 @@ interface LambaScreen {
   /** The frame's size in CSS pixels. */
   w: number;
   h: number;
-  /** True on the copy of the screen on the owner's phone. */
+  /** True on the copy of the screen on the owner's phone (and on a computer Player's, beside their page). */
   preview: boolean;
+  /** A Player's or Host's page: "phone" or "computer", what the person holds. */
+  device?: "phone" | "computer";
+  /** A computer's page: true while the screen's live copy sits beside the page (a wide window); false in a narrow one, which has the phone's layout. */
+  mirror?: boolean;
   /** In view "part": which part of the settings drawer to draw (lamba.json { "app": "<part>" }). */
   part?: string;
   /** In view "picture": draw this setting's choice, small. */
@@ -40,7 +44,10 @@ interface LambaTheme {
   fonts: { ui?: string; [k: string]: string | undefined };
 }
 
-interface LambaPlayer { id: string; name: string }
+/** A Player is one PERSON: on a phone and a laptop they are one entry. id: their first device's id (messages from any of their devices come from it); person: the same id on every device and every list; devices and kinds: how many (up to 3) and what ("phone" | "computer"). */
+interface LambaPlayer { id: string; name: string; person: string; devices: number; kinds: Array<"phone" | "computer"> }
+/** A device of a Player joined or left (Lamba.onDevice). */
+interface LambaDevice { id: string; person: string; kind: "phone" | "computer"; on: boolean }
 
 interface LambaStatus {
   connected: boolean;
@@ -289,6 +296,25 @@ interface LambaVideo {
   place(rect: LambaVideoRect | null, from?: string): LambaSDK;
 }
 
+interface LambaInk {
+  /** The Host lets Players point and draw (their Players tile): null until the room says, then true or false. Show your join card only when true. */
+  players: boolean | null;
+  on(ev: "players", fn: (on: boolean) => void): () => void;
+  /** A finished stroke (points are 0 to 1 of the placed rectangle), or a pointer moving (at most 10 a second for each person). from: "owner" or a Player's id. */
+  on(ev: "stroke", fn: (s: { from: string; name: string; colour: string; points: { x: number; y: number }[] }) => void): () => void;
+  on(ev: "point", fn: (s: { from: string; name: string; x: number; y: number }) => void): () => void;
+  on(ev: "live", fn: (state: "on" | "off" | "none") => void): () => void;
+  /** Opens ink: Lamba's own pad on the phones (Point and Draw), and Lamba draws each person's pointer dot and strokes over this page, above any live video.
+   * pointer / draw: which modes the pad offers (both on by default); fade: seconds before a stroke fades away (0, the default, never). Resolves "on", or "none" when this screen cannot draw it. live(false) ends it. */
+  live(o?: { pointer?: boolean; draw?: boolean; fade?: number; /** each person's name beside their dot (true, the default) */ names?: boolean; /** "laser" (a red dot for everyone, the default), "person" (each person's colour), or one "#rrggbb" for all */ dot?: "laser" | "person" | string } | false): Promise<"on" | "none" | "off">;
+  /** A person's colour, your app's choice ("owner" or a Player's id, "#rrggbb"; null gives Lamba's colour back): their lines, their own pad, and their dot when dot is "person". */
+  colour(who: string, colour: string | null): LambaSDK;
+  /** Where Lamba draws, and what the phones' pad stands for: fractions of the page ({ x, y, w, h }), the whole page by default. place(null) puts it back. */
+  place(rect: { x: number; y: number; w: number; h: number } | null): LambaSDK;
+  /** Wipes every stroke. */
+  clear(): LambaSDK;
+}
+
 interface LambaSDK {
   /** The vocabulary's version: 1. */
   v: number;
@@ -324,6 +350,10 @@ interface LambaSDK {
   drawn(): LambaSDK;
   onSettings(fn: (settings: { [key: string]: SettingValue }, changed: string[]) => void): LambaSDK;
   onPlayers(fn: (players: LambaPlayer[]) => void): LambaSDK;
+  /** Screen: fn({ id, person, kind, on }) when a device of a Player joins or leaves ("Use another device" in the Player menu). */
+  onDevice(fn: (d: LambaDevice) => void): LambaSDK;
+  /** What this page runs on: "phone" or "computer" on a Player's or the Host's page, "screen" on the screen page. */
+  device: "phone" | "computer" | "screen";
   /** Screen: fn(visitors) when visitors come or go. */
   onVisitors(fn: (visitors: LambaPlayer[]) => void): LambaSDK;
   /** A guest's phone: fn(visitor) when a visitor gets a player's seat. */
@@ -344,7 +374,8 @@ interface LambaSDK {
   /** Screen: the Host tapped one of the app's action tiles (lamba.json actions). from is "owner". */
   on(type: "action", fn: (msg: LambaAction, from: "owner") => void): LambaSDK;
   /** Messages of that type from the other side. from: "tv", "owner" or a player's id ("v0"). */
-  on(type: string, fn: (msg: LambaMessage, from: string) => void): LambaSDK;
+  /** from: the sender (a person with two devices is one id); info: null, or { device, kind } when it came from that person's other device. */
+  on(type: string, fn: (msg: LambaMessage, from: string, info: { device: string; kind: "phone" | "computer" } | null) => void): LambaSDK;
   /** Screen: what an action's tile says now (Start becomes Pause): label (24 at most), icon (an SVG in the app's folder), off (greyed). The Host's phone reads it from its copy of the screen. */
   action(key: string, state: { label?: string; icon?: string; off?: boolean }): LambaSDK;
   /** Phones: { name } the person chose, never an email. null on the screen or when no name was given. */
@@ -393,6 +424,8 @@ interface LambaSDK {
   voice: LambaVoice;
   /** The screen, "video" declared: a live camera or screen picture, drawn by Lamba. */
   video: LambaVideo;
+  /** The screen, "ink" declared: phones point and draw over this page, drawn by Lamba (docs/sdk/SENSORS.md, "Ink and pointers"). */
+  ink: LambaInk;
   /** A sender that keeps to hz messages a second (1 to 30, the latest wins). From a phone to the screen it goes straight over the Wi-Fi when it can (a direct link, no round trip through the room) and through the room when not; your app cannot tell and never needs to: const out = Lamba.stream("pos", 20, "tv"); out({ x, y }). */
   stream(type: string, hz?: number, to?: string): ((data: { [k: string]: unknown }) => void) & { flush(): void };
   /** Phones: every Google font, through Lamba's own address (never straight from Google). */

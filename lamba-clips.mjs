@@ -243,17 +243,21 @@ const even = n => Math.max(2, Math.round(n / 2) * 2);
 // a PNG made in the browser: the phone's rounded glass as a mask (white inside), and its soft shadow (black, blurred)
 async function pngs(browser, pw, ph, tmp) {
   const pg = await browser.newPage();
-  const r = Math.round(pw * 0.12), pad = 48;
+  const r = Math.round(pw * 0.11), pad = 48, bz = 7;   // a phone's corner: 11% of its width, and a slim dark bezel (7 px) around the glass
   const out = await pg.evaluate(({ pw, ph, r, pad }) => {
     const rr = (x, y, w, h, c) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
     const m = document.createElement("canvas"); m.width = pw; m.height = ph; const mc = m.getContext("2d"); mc.fillStyle = "#000"; mc.fillRect(0, 0, pw, ph); mc.fillStyle = "#fff"; rr(0, 0, pw, ph, mc); mc.fill();
     const s = document.createElement("canvas"); s.width = pw + 2 * pad; s.height = ph + 2 * pad; const sc = s.getContext("2d"); sc.filter = "blur(16px)"; sc.fillStyle = "rgba(0,0,0,.55)"; rr(pad, pad, pw, ph, sc); sc.fill();
-    return { mask: m.toDataURL("image/png").split(",")[1], shadow: s.toDataURL("image/png").split(",")[1] };
-  }, { pw, ph, r, pad });
+    const b = document.createElement("canvas"); b.width = pw + 2 * bz; b.height = ph + 2 * bz; const bc = b.getContext("2d");   // the bezel: a ring around the glass, #1a1a1e with a fine lighter outer edge
+    const ring = (x, y, w, h, rad) => { bc.moveTo(x + rad, y); bc.arcTo(x + w, y, x + w, y + h, rad); bc.arcTo(x + w, y + h, x, y + h, rad); bc.arcTo(x, y + h, x, y, rad); bc.arcTo(x, y, x + w, y, rad); bc.closePath(); };
+    bc.beginPath(); ring(0, 0, b.width, b.height, r + bz); ring(bz, bz, pw, ph, r); bc.fillStyle = "#1a1a1e"; bc.fill("evenodd");
+    bc.beginPath(); ring(0.6, 0.6, b.width - 1.2, b.height - 1.2, r + bz - 0.6); bc.strokeStyle = "rgba(255,255,255,.22)"; bc.lineWidth = 1.2; bc.stroke();
+    return { mask: m.toDataURL("image/png").split(",")[1], shadow: s.toDataURL("image/png").split(",")[1], bezel: b.toDataURL("image/png").split(",")[1] };
+  }, { pw, ph, r, pad, bz });
   await pg.close();
-  const mask = join(tmp, "mask-" + pw + "x" + ph + ".png"), shadow = join(tmp, "shadow-" + pw + "x" + ph + ".png");
-  writeFileSync(mask, Buffer.from(out.mask, "base64")); writeFileSync(shadow, Buffer.from(out.shadow, "base64"));
-  return { mask, shadow, pad };
+  const mask = join(tmp, "mask-" + pw + "x" + ph + ".png"), shadow = join(tmp, "shadow-" + pw + "x" + ph + ".png"), bezel = join(tmp, "bezel-" + pw + "x" + ph + ".png");
+  writeFileSync(mask, Buffer.from(out.mask, "base64")); writeFileSync(shadow, Buffer.from(out.shadow, "base64")); writeFileSync(bezel, Buffer.from(out.bezel, "base64"));
+  return { mask, shadow, bezel, pad, bz };
 }
 // the ground: a soft gradient of the app's tint over the whole clip, and (first clip) the caption in the free area at the left
 async function groundPng(browser, tint, caption, tmp, side) {
@@ -298,9 +302,9 @@ async function cut(browser, w, out, tmp, m) {
   const g = await pngs(browser, pw, ph, tmp), pad = g.pad;
   const filter = base + ";[0:v]fps=" + FPS + "," + crop(w.ph) + ",scale=" + pw + ":" + ph + ":flags=lanczos,setsar=1,format=yuva420p[p0];"
     + "[1:v]scale=" + pw + ":" + ph + ",format=gray[m];[p0][m]alphamerge[phone];"
-    + "[base][2:v]overlay=" + (x - pad) + ":" + (y - pad + 12) + ":format=auto[b2];[b2][phone]overlay=" + x + ":" + y + ":format=auto,format=yuv420p[v]";
+    + "[base][2:v]overlay=" + (x - pad) + ":" + (y - pad + 12) + ":format=auto[b2];[b2][phone]overlay=" + x + ":" + y + ":format=auto[b3];[b3][4:v]overlay=" + (x - g.bz) + ":" + (y - g.bz) + ":format=auto,format=yuv420p[v]";
   execFileSync(FF, ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list, "-loop", "1", "-framerate", String(FPS), "-i", g.mask, "-loop", "1", "-framerate", String(FPS), "-i", g.shadow,
-    "-loop", "1", "-framerate", String(FPS), "-i", ground,
+    "-loop", "1", "-framerate", String(FPS), "-i", ground, "-loop", "1", "-framerate", String(FPS), "-i", g.bezel,
     "-filter_complex", filter, "-map", "[v]", "-t", String(SECONDS), "-r", String(FPS),
     "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p", "-crf", "23", "-preset", "slow", "-an", "-movflags", "+faststart", out]);
 }
