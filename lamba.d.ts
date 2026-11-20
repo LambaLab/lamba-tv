@@ -37,6 +37,8 @@ interface LambaScreen {
   picture?: { setting: string; value: SettingValue; group: string; w: number; h: number };
   /** On phones: the device's own size. */
   room?: { w: number; h: number };
+  /** The screen page: the screen's own name as the Host gave it ("Living room"), "" when it has none. */
+  name?: string;
 }
 
 interface LambaTheme {
@@ -206,7 +208,7 @@ interface LambaMotion {
   on(type: "orientation", fn: (o: { alpha: number | null; beta: number | null; gamma: number | null }) => void): () => void;
 }
 /** A frame (see the "Motion and camera" topic: landmarks, joint angles and gesture names; never the picture). */
-interface LambaTrackFrame { v: number; t: number; id: number; w: number; h: number; mirror: boolean; pose: Array<{ x: number; y: number; z: number; v: number; wx?: number; wy?: number; wz?: number }> | null; hands: Array<{ side: "left" | "right"; points: Array<{ x: number; y: number; z: number }>; shape: string; pinch: number; pinching: boolean; wave: number; [k: string]: any }>; face: { blend: { [name: string]: number }; mesh: any; smile: number; emotion: string } | null; gestures: { body: { [k: string]: any }; pair: { [k: string]: any }; events: Array<{ type: string; [k: string]: any }> }; [k: string]: any }
+interface LambaTrackFrame { v: number; t: number; id: number; w: number; h: number; mirror: boolean; pose: Array<{ x: number; y: number; z: number; v: number; wx?: number; wy?: number; wz?: number }> | null; hands: Array<{ side: "left" | "right"; points: Array<{ x: number; y: number; z: number }>; shape: string; pinch: number; pinching: boolean; wave: number; [k: string]: any }>; face: { blend: { [name: string]: number }; mesh: any; smile: number; emotion: string } | null; gestures: { body: { [k: string]: any }; pair: { [k: string]: any }; events: Array<{ type: string; [k: string]: any }> }; /** the picture's mean brightness, 0 to 255, measured on the phone about once a second (the picture never leaves it) */ light?: number; [k: string]: any }
 interface LambaTrackOptions { camera?: "front" | "back"; pose?: boolean; hands?: boolean; face?: boolean; gestures?: boolean; /** frames a second, 5 to 30 (default 30) */ rate?: number;
   /** The body model, at start. "auto" (default): the Tracking Lab's own way, the light model that steps up to the full one while the phone is quick and back down when it is not. "lite": stays on the light model. "full": starts on the full model (more exact, a 9 MB download, hotter; an iPhone or iPad always stays on the light one). Hands only: pose: false (and gestures: false for the plain hand model). */ model?: "auto" | "lite" | "full";
   /** Where the models run: left out, the engine picks (the graphics chip, the processor if that is slow). "CPU" or "GPU" forces one. */ delegate?: "CPU" | "GPU" }
@@ -231,6 +233,14 @@ interface LambaTrack {
   preload(o?: { pose?: boolean; hands?: boolean; face?: boolean; gestures?: boolean; model?: "auto" | "lite" | "full" }, onProgress?: (p: { fraction: number }) => void): Promise<boolean>;
   /** Phones whose lamba.json declares "camera": the person is asked on the phone; the picture stays there. */
   start(o?: LambaTrackOptions): LambaTrackSession;
+  /** Help improve tracking (Lamba's own apps only, never a kids app): this phone's own choice, off to begin with. help() says it; help(false) switches it off; help(true) only asks: Lamba shows its own sheet, and only the person's tap on Turn on switches it on. can is false where it is not offered: show no switch then. sent is 1 after an upload went. */
+  help(on?: boolean): Promise<{ can: boolean; on: boolean; sent: 0 | 1 }>;
+  /** Hears the choice change and an upload go. Returns a function that stops it. */
+  onHelp(fn: (h: { can: boolean; on: boolean; sent: 0 | 1 }) => void): () => void;
+  /** Labels the frames while the switch is on: "start" and "end" of each prompt (its id, what was expected as plain numbers, its score 0 to 1), then "done" with the round's score and the phone to screen latency in ms. Nothing is kept or sent while the switch is off. */
+  /** Lamba draws the live camera picture with Tracking Lab's nodes (body, hands, face) exactly over el, small, while the camera runs: the picture never enters your page. null takes it away. */
+  preview(el: Element | null): void;
+  mark(o: { prompt?: string; at: "start" | "end" | "done"; expect?: { [k: string]: number }; score?: number; latency?: { med: number; p95: number; n: number } }): void;
 }
 
 /** A microphone session's state (docs/sdk/SENSORS.md, Microphone): "asking" (Lamba's sheet or the browser asks), "on", "off" (stopped: by the app,
@@ -275,7 +285,7 @@ interface LambaVoice {
   stop(): LambaSDK;
   /** Opens live voice: Lamba's hold to talk on the phones, the voice plays here. talkers 1 to 4 (1), max 5 to 60 seconds (30), silence 2 to 15 (5).
    * Resolves "on", or "none" when this screen cannot play it (it says so). live(false) ends it. */
-  live(o?: { talkers?: number; max?: number; silence?: number; big?: boolean; captions?: boolean } | false): Promise<"on" | "none" | "off">;
+  live(o?: { talkers?: number; max?: number; silence?: number; big?: boolean; captions?: boolean; /** false: captions only, the voice is never sent or played, and a tap turns captions on until a tap turns them off (default true) */ sound?: boolean; /** false: no sign of Lamba's on the screen for who talks; the app shows it itself, in its own words (default true) */ sign?: boolean } | false): Promise<"on" | "none" | "off">;
 }
 
 interface LambaVideoRect {
@@ -291,7 +301,7 @@ interface LambaVideo {
   /** Opens live video: Lamba's own "Show my camera" or "Share my screen" tap on the phones and computers, and Lamba draws the picture over this page (never a video element of yours).
    * from: "camera" (phones), "screen" (computers) or "any" (default); senders 1 or 2 at once (default 1); big: the tap is the remote's one big key; audio: the sound goes with the picture (a camera's microphone, a shared tab's sound), played by Lamba at the Host's volume, default false.
    * Resolves "on", or "none" when this screen cannot show it. live(false) ends it. */
-  live(o?: { from?: "camera" | "screen" | "any"; senders?: 1 | 2; big?: boolean; audio?: boolean } | false): Promise<"on" | "none" | "off">;
+  live(o?: { from?: "camera" | "screen" | "any"; senders?: 1 | 2; big?: boolean; audio?: boolean; /** the phone's first camera: "front" (default, a face, mirrored) or "back" (a whiteboard, a page) */ camera?: "front" | "back" } | false): Promise<"on" | "none" | "off">;
   /** Where Lamba draws the picture: the whole page by default (a half each with senders 2). from: one sender's id (from a "show"); left out: every sender. place(null) puts it back. */
   place(rect: LambaVideoRect | null, from?: string): LambaSDK;
 }
@@ -399,7 +409,7 @@ interface LambaSDK {
   film(canvas: HTMLCanvasElement, url: string, opts?: LambaFilmOptions): LambaFilm;
   /** Screen: the host's join card with the code people scan. Only for apps guests join. line: at most 60 characters. */
   /** The host's join card. An ambient app (categories "ambient", "art" or "clocks") never gets the big card in the middle: "full" shows the corner card for 30 s, then only the small code in that corner; "corner" is the small code at once. side: which bottom corner (default "left"). */
-  joinCard(o: { show?: boolean; size?: "full" | "corner"; line?: string; avoid?: [number, number, number, number]; side?: "left" | "right" }): LambaSDK;
+  joinCard(o: { show?: boolean; size?: "full" | "corner" | "code"; line?: string; avoid?: [number, number, number, number]; side?: "left" | "right" }): LambaSDK;
   /** Screen: the in-room question for what is on screen now. */
   question(q: LambaQuestion): LambaSDK;
   /** Screen and picture: the app's main colours, so the frame's Soft and Neon styles match. */

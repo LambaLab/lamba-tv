@@ -96,10 +96,12 @@ After every build or change that passes the check, end your message with a click
 
 When the work reaches a step that needs Lamba (upload, submit, status), or the developer asks what is possible, say it
 in your own words, in one or two plain sentences: connecting Lamba lets you upload the app, send it for review and
-follow the review for them. It is one tap, and signing up is part of it. Ask if they want it, and never stop at "not connected": on yes, connect it yourself as below. Not before: building,
-checking, testing, `--serve` and clips need no connection.
+follow the review for them. It is one tap, and signing up is part of it. Never stop at "not connected", and never end
+your message with a step "pending": connect it yourself as below. A connector (Claude Code, the Claude app, Codex CLI or
+IDE, ChatGPT) changes their settings, so ask first and on yes set it up. In a chat AI (Codex cloud, a phone), do not
+ask: start the sign-in yourself. Not before: building, checking, testing, `--serve` and clips need no connection.
 
-On yes, pick the way that fits the tool you run in, and do every step you can yourself:
+Pick the way that fits the tool you run in, and do every step you can yourself:
 
 - **Claude Code:** run `claude mcp add --transport http lamba-tv https://lamba.tv/devs/mcp`, then tell them to type
   `/mcp`, choose lamba-tv and Authenticate. A browser opens: tap Allow.
@@ -112,14 +114,27 @@ On yes, pick the way that fits the tool you run in, and do every step you can yo
 - **ChatGPT:** Settings, Apps, Advanced settings, turn on Developer mode, then Create app with the URL
   `https://lamba.tv/devs/mcp` and sign in. Menus there change, and not every plan has it. If it is not there, say so
   and use the sign-in below, or a zip at https://lamba.tv/devs.
-- **On a phone, in Codex cloud, a plain terminal, any other AI:** run `node lamba-login.mjs` yourself and show the developer the one
-  line it prints: tap the link (it opens in the phone's browser; sign up or sign in there) and tap Allow, then come back to the chat. It saves the key in `.lamba/key` (kept out of git and out of uploads)
-  and `node lamba-check.mjs <app> --upload` uses it. `node lamba-login.mjs --logout` removes it. A connector alone is
-  enough for the MCP tools; run the sign-in too for big uploads with the script.
+- **On a phone, in Codex cloud, any chat AI:** the developer sees your message only when your turn ends, so never wait
+  on a command there. Once the app is built and checked, run `node lamba-login.mjs --start`. It prints one line, `Open
+  <link> and tap Allow`, and returns at once. End your message with that link on its own line, as a link they can tap,
+  for example:
+
+  Tap to approve Lamba: [Approve](https://lamba.tv/link?c=ABCD-EFGH), then reply done.
+
+  On their next message run `node lamba-login.mjs --finish` (or `node lamba-check.mjs <app> --upload`, which finishes
+  it first), carry on with the upload and give them the Play it link. If it says "Not allowed yet", end your message
+  with the link again the same way. The key is saved in `.lamba/key`, the waiting sign-in in `.lamba/pending`, both
+  kept out of git and out of uploads.
+- **A plain terminal:** run `node lamba-login.mjs`: it prints the link and waits for the tap. `node lamba-login.mjs
+  --logout` removes the key. A connector alone is enough for the MCP tools; run the sign-in too for big uploads with
+  the script.
 
 Only in Codex cloud, once, after the first connection, tell them: to skip the tap next time, make a key at
 https://lamba.tv/devs/keys and add it in this environment's settings as an environment variable named `LAMBA_KEY`
 (not a secret: Codex removes secrets before the agent runs, and keeps variables).
+
+Lamba apps need no GitHub repository. Do not create one or push anywhere unless the developer asks; the app goes to
+Lamba with `--upload` or `lamba_upload`.
 
 Never ask for a key or a code in the chat, and never print a key. Submit for review only when the developer asks.
 Say "screen" for the device, never "TV" (the name Lamba TV stays). On staging use `LAMBA_URL` and `LAMBA_MCP_URL` as above.

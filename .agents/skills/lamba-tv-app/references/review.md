@@ -43,7 +43,7 @@ https://lamba.tv/devs/docs/design/.
 - [ ] The old screen size (960 x 540) shows the same, nothing cut off.
 - [ ] The phone: one main action, big, low in the middle; other options behind one tap; nothing tiny.
 - [ ] Steering or aiming uses a slide track, not arrow buttons; a game controller has a left or right hand switch.
-- [ ] Calm when nothing happens; motion stops under `prefers-reduced-motion`.
+- [ ] Calm when nothing happens. Under `prefers-reduced-motion` the screen's film or scene keeps playing; only interface motion (transitions, bounces) stops.
 - [ ] The screen page still reads when it is smaller (a second app beside or under it) and lays out again on `Lamba.onScreen`.
 - [ ] Settings: the look waits for Send to screen; only who may join, for how long and the sound are `"apply": "now"`;
   a choice for nothing is named "None" with no picture; no tiles of your own for Players, scribbles or effects.

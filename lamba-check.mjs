@@ -31,6 +31,7 @@
  * THE SOFTWARE.
  */
 import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, resolve, relative, basename, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6132,7 +6133,7 @@ function checkRules(m, dir) {
   else m.outside.forEach(o => { if (!/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?$/i.test(o || "")) say("outside: " + o + " must be https://host (no path)"); });
   if (m.split !== undefined && m.split !== "tall" && m.split !== "letterbox") say("split must be \"tall\" (the screen page gets a half's own tall shape in a split screen and reads Lamba.layout) or \"letterbox\" (the default: the whole 16:9 page scaled into the half)");
   if (m.frame !== undefined && m.frame !== "none") say("frame must be \"none\" (the app starts without a frame; the Host can still pick one)");
-  for (const k of ["stagingOnly", "notInDemo", "listed", "liveCard", "music"]) if (m[k] !== undefined && typeof m[k] !== "boolean") say(k + " must be true or false");
+  for (const k of ["stagingOnly", "notInDemo", "listed", "liveCard", "music", "business", "workspace"]) if (m[k] !== undefined && typeof m[k] !== "boolean") say(k + " must be true or false");
   if (m.position !== undefined && !(m.position && typeof m.position.after === "string" && ID.test(m.position.after))) say("position must be { after: <an app id> }");
   if (m.remote !== undefined && !(m.remote && typeof m.remote.ok === "boolean")) say("remote must be { ok: true | false }");
   // actions: one tap tiles in the Host's drawer (Feed, Tend the fire, New game); a tap sends { type: "action", key } to the screen
@@ -6425,7 +6426,7 @@ function registryEntry(m) {
   const e = JSON.parse(JSON.stringify(m));
   delete e.lamba; delete e.$schema;
   e.askName = m.askName === true;
-  e.clips = m.clips || []; e.listed = m.listed !== false; e.stagingOnly = m.stagingOnly === true; e.notInDemo = m.notInDemo !== false; e.liveCard = m.liveCard === true;
+  e.clips = m.clips || []; e.listed = m.listed !== false; e.stagingOnly = m.stagingOnly === true; e.notInDemo = m.notInDemo !== false; e.liveCard = m.liveCard === true; if (m.business === true) e.business = true; if (m.workspace === true) e.workspace = true;
   // the settings a Player may change (the parts of the groups marked "players": true), for the room to check a Player's change
   e.playerKeys = ((m.settings || {}).groups || []).filter(g => g && g.players === true).flatMap(g => (g.parts || []).flatMap(partKeys)).filter((k, i, a) => a.indexOf(k) === i);
   e.live = Object.keys((m.settings || {}).fields || {}).filter(k => m.settings.fields[k].apply === "now");   // settings that go to the screen at once
@@ -6883,6 +6884,7 @@ const M_files = (() => {
 //      browser's PaymentRequest or Apple Pay), card fields (card number, CVC, expiry), links out to other payment pages;
 //      Lamba.buy on the screen page (the screen never sells), Lamba.buy of a product lamba.json does not list, or in an app with
 //      nothing for sale. A kids app: a warning that Lamba sells there to the Host only, behind an extra confirm
+//  19. warning: the screen's code asks for prefers-reduced-motion (films and ambient scenes keep playing on a screen; Lamba answers no-preference there)
 //   8. the phone's controls are the shared ones: no <input type=range> or type=color of its own, no grid of colour dots or
 //      swatches (a colours setting with swatches in lamba.json gets the drawer's colour strip and picker), no LambaUI.colours
 const { inside, partKeys, PAY_HOSTS, paidOf, kidsOf } = M_rules;
@@ -7362,6 +7364,9 @@ function checkFiles(o) {
   // 17. how the screen runs on old screens (tools/sdk_perf.mjs): style or filter writes every frame, timers that redraw the
   //     scene, a film floor with no lighter copy, sound with no unlock. Warnings here; the review (docs/sdk/REVIEW.md) shows them as findings
   moneyRule(m, has, text, say, warnings, [...tvFiles]);
+  // 19. reduced motion on the screen (docs/sdk/DESIGN.md, Movement): films and ambient scenes keep playing there. Lamba answers
+  //     the query with no-preference on the screen page, so such code is dead there; the warning says why not to rely on it
+  reducedMotionRule(has, text, warnings, [...tvFiles]);
   const perf = acorn ? perfStatic({ manifest: m, paths: [...has], text, acorn }) : [];
   perfWarnings(perf).forEach(w => warnings.push(w));
   // 18. split screen: "split": "tall" gives the screen page a half's own tall shape, so it should read Lamba.layout (docs/sdk/DESIGN.md "Split screen")
@@ -7383,6 +7388,12 @@ const PAY_CODE = [
   [/\b(name|id|placeholder|aria-label)\s*=\s*["'][^"']*\b(card ?number|cardnumber|credit ?card|cvc|cvv|security code)\b/i, "has a card field (card number, CVC)"],
   [/\b(card number|credit card number|cvc code|cvv code)\b/i, "asks for card details"]
 ];
+function reducedMotionRule(has, text, warnings, tvFiles) {
+  for (const f of tvFiles.filter(f => has.has(f) && [".html", ".js"].includes(ext(f)))) {
+    const code = (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+    if (/matchMedia\s*\(\s*["'`]\s*\(\s*prefers-reduced-motion/.test(code)) warnings.push(f + ": the screen's code asks for prefers-reduced-motion. On a screen, films and ambient scenes keep playing (work laptops and Remote Desktop turn animations off, and a still fire looks broken), so Lamba answers it with no-preference there. Never swap the film or scene for a still picture because of it; keep reduced motion for small interface motion only (docs/sdk/DESIGN.md, Movement).");
+  }
+}
 function moneyRule(m, has, text, say, warnings, tvFiles) {
   const code = f => (text(f) || "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|[^:"'])\/\/.*$/gm, "$1");
   const ids = new Set((Array.isArray(m.products) ? m.products : []).map(p => p && p.id).filter(Boolean)), selling = paidOf(m), tv = new Set(tvFiles);
@@ -7647,6 +7658,8 @@ async function checkUpload(bytes, o) {
   }
   if (m.stagingOnly !== undefined) say("stagingOnly: leave it out (an app from outside Lamba is listed once it is approved)");
   if (m.listed === false) say("listed: leave it out (an approved app is listed for everyone)");
+  if (m.workspace !== undefined) say("workspace: leave it out (only Lamba's own apps choose this)");
+  if (m.business !== undefined) say("business: leave it out (only Lamba's own work apps choose this)");
   if (m.notInDemo !== undefined) say("notInDemo: leave it out (only Lamba's own apps choose this)");
   if (m.position !== undefined) say("position: leave it out (only Lamba's own apps choose this)");
   if (m.legacy !== undefined) say("legacy: only for Lamba's own apps from before the SDK, leave it out");
@@ -7691,7 +7704,7 @@ async function kitNotice(base) {
 // ---------- the command ----------
 // node lamba-check.mjs [folder ...]   with no folder: every folder here that has a lamba.json (or this one)
 // Each folder is checked as Lamba's server checks the zip you upload: the same code (above), on the same files.
-const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-candles","sdk-draw","sdk-frames","sdk-hello","sdk-roommic","sdk-showme","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
+const RESERVED = ["admin","alarm","app","apps","aquarium","art","aura","balloons","bowling","cheetah","chess","clock","colour","control","countdown","developers","devs","draw","draw-along","fireplace","flip","gallery","graffiti","home","lamba","mini-golf","motion-lab","neon","now-playing","paper","photos","ping-pong","pool","quotes","registry","remote","sdk","sdk-candles","sdk-draw","sdk-frames","sdk-hello","sdk-meeting-room","sdk-movecheck","sdk-roommic","sdk-showme","shell","stopwatch","tictactoe","timers","tracking-lab","welcome","window","winter-window","write-along","x","youtube"];
 const SKIP = n => n === "node_modules" || n.startsWith(".");   // .lamba/ (the key) is hidden, so never in a zip
 const SECRET = p => /(^|\/)\.lamba(\/|$)/.test(p);   // hidden files and folders stay out of an app's zip
 function walk(dir) {
@@ -7723,12 +7736,17 @@ function lambaBase() {
   if (!base && process.env.LAMBA_MCP_URL) { try { base = new URL(process.env.LAMBA_MCP_URL).origin; } catch (e) {} }
   return base || "https://lamba.tv";
 }
+// a sign-in started with node lamba-login.mjs --start (.lamba/pending) is finished here first, so the upload goes on
 function lambaKey(dir) {
-  let key = process.env.LAMBA_KEY || "";
-  if (!key) for (const f of [join(process.cwd(), ".lamba", "key"), join(dirname(resolve(dir || ".")), ".lamba", "key")]) { try { key = readFileSync(f, "utf8").trim(); break; } catch (e) {} }
-  return /^lamba_[A-Za-z0-9]{40}$/.test(key) ? key : "";
+  const homes = [process.cwd(), dirname(resolve(dir || "."))];
+  const found = () => { let key = process.env.LAMBA_KEY || ""; if (!key) for (const h of homes) { try { key = readFileSync(join(h, ".lamba", "key"), "utf8").trim(); break; } catch (e) {} } return /^lamba_[A-Za-z0-9]{40}$/.test(key) ? key : ""; };
+  let key = found();
+  const home = !key && homes.find(h => existsSync(join(h, ".lamba", "pending")));
+  const login = home && [join(dirname(fileURLToPath(import.meta.url)), "lamba-login.mjs"), join(home, "lamba-login.mjs")].find(f => existsSync(f));
+  if (login) { spawnSync(process.execPath, [login, "--finish"], { cwd: home, stdio: "inherit" }); key = found(); }
+  return key;
 }
-const NOT_CONNECTED = "not connected to Lamba yet. Run node lamba-login.mjs and tap Allow (never paste a key into a chat)";
+const NOT_CONNECTED = "not connected to Lamba yet. Run node lamba-login.mjs (in a chat AI: node lamba-login.mjs --start, then show its link) and tap Allow (never paste a key into a chat)";
 // --upload: send the folder to Lamba as a new version (--new "what's new" for an update; or whatsNew in lamba.json)
 async function send(dir, bytes) {
   const base = lambaBase(), key = lambaKey(dir);

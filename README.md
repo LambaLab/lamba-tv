@@ -30,7 +30,7 @@ How to build it
 1. Before any code, ask me in one short message, with your suggestions: who it's for (everyone, families or made for kids), public on Lamba or private to my organization, its name, and whether Players join from their phones and how many.
 2. Get the kit from github.com/LambaLab/lamba-tv (its README: starter.zip into its own folder, lamba-app/) and follow its AGENTS.md and the lamba-tv-app skill.
 3. Run the check and the self-test, look at every screenshot and go through the design checklist. Fix everything until they all pass. Then record its clips with lamba-clips.mjs.
-4. Then tell me in one sentence what you built and how I can try it. I'm not technical: guide me through every step in plain words and do every step you can yourself. If Lamba isn't connected yet, ask me if you should connect it (one tap), then connect it yourself as the kit's AGENTS.md says (node lamba-login.mjs gives a link I can open on my phone), and upload it for me. Never leave me with a zip to upload myself unless every way to connect fails.
+4. Then tell me in one sentence what you built and how I can try it. I'm not technical: guide me through every step in plain words and do every step you can yourself. If Lamba isn't connected yet, connect it yourself as the kit's AGENTS.md says (in a chat, end your message with the link I tap to approve), and upload it for me. Never leave me with a zip to upload myself unless every way to connect fails.
 ```
 
 That's all. At the start of every session, and whenever a tool says a newer kit exists, run `node lamba-update.mjs` first. Never tell the developer something the current kit doesn't say.

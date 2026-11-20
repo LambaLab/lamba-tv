@@ -403,6 +403,14 @@
   "liveCard": {
    "type": "boolean"
   },
+  "workspace": {
+   "type": "boolean",
+   "description": "true: part of Workspace on a company's screens (Lamba's own apps only). Outside a company it runs as always"
+  },
+  "business": {
+   "type": "boolean",
+   "description": "true: a work app for Lamba TV for Business. It shows and runs only on a company's screens with an active plan or trial; anywhere else it shows a lock that says For Lamba TV for Business"
+  },
   "split": {
    "enum": [
     "tall",
