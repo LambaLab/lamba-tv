@@ -310,9 +310,12 @@ all. The screen writes; `L.store.on` tells the others. No other storage exists.
 
 ## Sound (Screen, lamba.json "permissions": ["sound"])
 
+Make the context once at load (Lamba wakes it in the first tap or remote press, and after the page was in the background); never a context or `<audio>` of your own.
+
 ```js
+var ac = L.sound.context();
 function chime() {
-  var ac = L.sound.context(); if (!ac || !L.sound.unlocked || L.screen.view !== "screen") return;
+  if (!ac || !L.sound.unlocked || L.screen.view !== "screen") return;
   var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
   o.frequency.value = 660; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
   o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.65);

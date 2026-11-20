@@ -82,7 +82,7 @@ interface LambaSound {
   unlocked: boolean;
   /** One Web Audio context for the page, woken whenever sound may play. Never an <audio> element on a screen page. */
   context(): AudioContext | null;
-  /** Wake the context now (the host does this for you). */
+  /** Make the context if there is none and wake it now, inside a tap of your own (Lamba already does this on every tap, click and remote press). */
   unlock(): LambaSDK;
   /** fn() when sound becomes allowed, or at once if it already is. */
   onUnlock(fn: () => void): LambaSDK;
