@@ -238,7 +238,7 @@ interface LambaTrack {
   /** Hears the choice change and an upload go. Returns a function that stops it. */
   onHelp(fn: (h: { can: boolean; on: boolean; sent: 0 | 1 }) => void): () => void;
   /** Labels the frames while the switch is on: "start" and "end" of each prompt (its id, what was expected as plain numbers, its score 0 to 1), then "done" with the round's score and the phone to screen latency in ms. Nothing is kept or sent while the switch is off. */
-  /** Lamba draws the live camera picture with Tracking Lab's nodes (body, hands, face) exactly over el, small, while the camera runs: the picture never enters your page. null takes it away. */
+  /** Lamba draws the live camera picture with Tracking Lab's nodes (body, hands, face) exactly over el while the camera runs (in a camera game el is the remote's hero: the biggest thing, front and centre): the picture never enters your page. null takes it away. */
   preview(el: Element | null): void;
   mark(o: { prompt?: string; at: "start" | "end" | "done"; expect?: { [k: string]: number }; score?: number; latency?: { med: number; p95: number; n: number } }): void;
 }

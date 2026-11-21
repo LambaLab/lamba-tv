@@ -75,6 +75,7 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
    shake) or `Lamba.track` (body, hands, face as landmarks and gesture names) from a phone page only, never `getUserMedia` or
    `devicemotion` yourself. Start from a tap, handle `"finger"`, `"denied"` and no camera with a touch way to play, offer front
    and back (`Lamba.track.cameras()`), and send the screen small messages with `Lamba.stream("name", 20, "tv")`, never whole frames (it goes straight over the Wi-Fi when it can and through the room when not; use `Lamba.send` for what must arrive, once). Ask `Lamba.track.start` only for what you use (`pose: false` for a hand game); `model` and `delegate` are left alone unless you know why.
+   When the camera is how a Player plays (move a hand, the body), its view (`Lamba.track.preview(el)`) is the remote's hero: the biggest thing, front and centre, about half the phone or more, with at most a small key or two beside or below it. Never a thin strip above a big key the Player will not use; the camera or touch choice is a setting in the tray. `lamba-test` measures it.
    The camera picture never leaves the phone. The simulator makes up both sensors, so `node lamba-test.mjs` can run the game.
    **The microphone only through Lamba, too.** Declare `"microphone"`. On a phone page: `Lamba.mic.level(fn)` (a loudness 0 to 1 and a
    blow), `Lamba.mic.words({ onText, onFinal })` (speech to text; check `Lamba.mic.canWords`), `Lamba.mic.record({ max })` (Lamba's own
@@ -100,6 +101,7 @@ Types for every call: `lamba.d.ts`. Every field of lamba.json: `lamba.schema.jso
    CHOSEN one; a number shows its value ("100%"), a switch or a position a small diagram. Leave `icon` out of such a group
    (`lamba check` warns when one is forced over pictured choices). A line icon (`"icon": {"icon": "pictures/fire.svg"}`,
    24 x 24, one stroke colour, `currentColor`) is only for a group with nothing better; `lamba check` refuses a group with neither.
+   Setting pictures look the same in every app. A line icon is written `{ "icon": "pictures/x.svg" }` (24 x 24, a 1.5 to 2 line, `currentColor`) and Lamba draws it in its own size, colour and weight; never a line icon as a plain picture (it gets your colour and thickness, edge to edge). A plain picture is a real scene made for the tile. One setting uses one kind for every choice, and "None" has no picture. `lamba check` warns.
    **The Host's phone is the live screen on top and ONE horizontal swiping row of tiles, nothing in between.** Every
    setting is a field of lamba.json, and every one tap thing the Host does (Feed, Tend the fire, New game) is an
    action in lamba.json: `"actions": [{ "key": "tend", "label": "Tend the fire", "icon": "pictures/tend.svg" }]` (1 to 4,
@@ -228,6 +230,7 @@ Work in this order and do not skip a step:
    - Words on the screen read from across the room.
    - Each Player's remote has one big main action, low on the screen.
    - Options (hand, motion or camera, difficulty, mode) are tiles in the Settings tray, not buttons on the remote; game actions stay on the remote.
+   - A camera game's remote is the camera view, big, front and centre; no big key the Player does not use.
    - The screen shows the game. Phones are the controls, not a copy of the screen.
    - The Host's phone is the live screen and one row of tiles (settings and actions), nothing in between.
    - Players get a full screen, realistic remote that never scrolls; no clip art, no emoji, no name step of its own.

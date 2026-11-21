@@ -7137,6 +7137,34 @@ const GOOGLE = /^https?:\/\/fonts\.(googleapis|gstatic)\.com/;
 // hides what is chosen: a warning (shell/sdk/phone-host.js tilePic, docs/sdk/DESIGN.md "Tiles").
 const PLACE_WORDS = /^(left|right|top|bottom|center|centre|middle|(top|bottom|upper|lower)[-_ ](left|right)|(left|right)[-_ ](top|bottom))$/i;
 const realPic = pc => typeof pc === "string" && !!pc;
+// Setting pictures look the same in every app (docs/sdk/DESIGN.md "Setting pictures"): a line icon is written { "icon": "x.svg" }
+// and Lamba draws it (one size, Lamba's colour, a light line), never as a full picture with its own colour and weight; a full
+// picture is a real scene made for the tile; one setting never mixes the two; an icon is drawn on 24 x 24 with a 1.5 to 2 line.
+function svgBox(svg) { const v = (svg.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i) || []); const w = (svg.match(/<svg\b[^>]*\bwidth\s*=\s*["']([\d.]+)/i) || [])[1]; return { w: +(v[1] || w || 0), h: +(v[2] || w || 0) }; }
+function strokeMax(svg) { return Math.max(0, ...[...svg.matchAll(/stroke-width\s*[=:]\s*["']?([\d.]+)/gi)].map(x => +x[1])); }
+function isLineIcon(svg) {
+  if (/<(image|linearGradient|radialGradient|pattern|filter)\b/i.test(svg)) return false;
+  const fills = [...svg.matchAll(/\bfill\s*[=:]\s*["']?([^"';\s>]+)/gi)].map(x => x[1].toLowerCase()).filter(f => f !== "none" && f !== "currentcolor");
+  return /stroke\s*[=:]/i.test(svg) && fills.length <= 1;
+}
+function settingPictures(m, text, warnings) {
+  const F = m.settings && m.settings.fields; if (!F || typeof F !== "object") return;
+  for (const [k, f] of Object.entries(F)) {
+    if (!f || typeof f !== "object") continue;
+    const cs = f.type === "switch" ? [f.on, f.off] : Array.isArray(f.choices) ? f.choices : []; if (!cs.length) continue;
+    const lines = [], full = [], heavy = [];
+    for (const c of cs) {
+      const pc = c && c.picture; if (!pc) continue;
+      const file = typeof pc === "string" ? pc : pc && typeof pc.icon === "string" ? pc.icon : null; if (!file || pc === "live") { if (pc === "live") full.push("live"); continue; }
+      const svg = /\.svg$/i.test(file) ? text(file) : null;
+      if (typeof pc === "string") { if (svg && isLineIcon(svg)) lines.push(file); else full.push(file); continue; }
+      if (svg) { const b = svgBox(svg), sw = strokeMax(svg); if ((b.w && Math.abs(b.w - 24) > 0.5) || (b.w && sw * 24 / b.w > 2.2)) heavy.push(file); }
+    }
+    if (lines.length) warnings.push("settings.fields." + k + ": " + lines.join(", ") + (lines.length > 1 ? " are line icons" : " is a line icon") + " used as a full picture, so it gets its own size, colour and weight and looks unlike every other app. Write the picture as { \"icon\": \"" + lines[0] + "\" }: Lamba draws every setting icon the same way (one size, its own colour, a light line). Only a real scene made for the tile is a full picture.");
+    if (lines.length && full.length) warnings.push("settings.fields." + k + ": mixes line icons and full pictures. One setting uses one kind for every choice.");
+    if (heavy.length) warnings.push("settings.fields." + k + ": " + heavy.join(", ") + ": draw setting icons on a 24 x 24 viewBox with a 1.5 to 2 line (stroke-width), one colour (currentColor), the way Lamba's own icons are.");
+  }
+}
 function groupPictures(m, say, warnings) {
   const S = m.settings; if (!S || !Array.isArray(S.groups) || !S.fields || typeof S.fields !== "object") return;
   S.groups.forEach(g => {
@@ -7364,6 +7392,7 @@ function checkFiles(o) {
   }
   // 11. every group of the drawer has a picture on its tile: an icon, or a picture for each choice (the host shows it)
   groupPictures(m, say, warnings);
+  settingPictures(m, text, warnings);
   photoGroups(m, warnings);
   shortLabels(m, warnings);
   // 12. "TV" is not what an app calls the screen: an error in the listing, a warning in the pages
