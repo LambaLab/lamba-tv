@@ -16,7 +16,7 @@ then carry on (upload, preview link, submit). If they say not now, ask again at 
 download is the last resort, only if every way to connect fails, and then you explain each tap.
 
 **One app, one function.** Lamba TV apps are small apps that do one thing well: a quiz, a countdown, a drawing game.
-One thing means one job: a few tools are fine when they all serve it (Meeting Room shares a screen, lets people point
+One thing means one job: a few tools are fine when they all serve it (Room sharing shares a screen, lets people point
 and draw on it, and has a room mic: one meeting). Something people may want beside it is its own app (a whiteboard),
 which the Host puts next to it on the screen. Build the one thing the developer asked for. No menus of games, no extra features, no settings screens of your own.
 

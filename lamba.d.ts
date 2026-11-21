@@ -294,15 +294,29 @@ interface LambaVideoRect {
   /** "fill": the whole picture with its own soft copy filling the sides (a face held upright on a wide screen); "cover" fills the box and cuts what overflows; "contain" fits the whole picture on black (a shared screen). Left out: fill for a camera, contain for a screen. */
   fit?: "cover" | "contain" | "fill";
 }
+interface LambaVideoCall {
+  /** Remote people (not on the screen's Wi-Fi) the plan allows in one call; 0 = no remote. Home 2, Business 12 (worker/plans.js). */
+  remoteMax: number;
+  /** When the call ends (ms since 1970, this screen's clock), or 0 for no time limit. The clock starts when the first remote person joins. */
+  endsAt: number;
+  /** Remote people in the call now, and remote people past remoteMax ("This call is full"). */
+  remote: number; full: number;
+  /** The time ran out: the remote people have dropped out, the room goes on sharing on its Wi-Fi. */
+  over: boolean;
+}
 interface LambaVideo {
-  /** Someone started or stopped showing (from: "owner" or a Player's id; kind: their camera or their screen; slot 0 or 1, the sender's place with senders 2). */
-  on(ev: "show", fn: (s: { from: string; name: string; kind: "camera" | "screen"; on: boolean; slot: number }) => void): () => void;
+  /** Someone started or stopped showing (from: "owner" or a Player's id; kind: their camera or their screen; slot 0 to 5, the sender's part of the split, or its place in the row of heads; kind "file": a picture or the pages of a PDF; head: a front camera floating round over the pictures). */
+  on(ev: "show", fn: (s: { from: string; name: string; kind: "camera" | "screen" | "file"; on: boolean; slot: number }) => void): () => void;
   on(ev: "live", fn: (state: "on" | "off" | "none") => void): () => void;
+  /** Room sharing: the plan's limits and the call's time changed (a remote person came or went, the 5 minute mark, the end). Lamba draws the pill and the lines itself. */
+  on(ev: "call", fn: (c: LambaVideoCall) => void): () => void;
+  /** The last "call" word, or undefined before the room says. */
+  call?: LambaVideoCall;
   /** Opens live video: Lamba's own "Show my camera" or "Share my screen" tap on the phones and computers, and Lamba draws the picture over this page (never a video element of yours).
-   * from: "camera" (phones), "screen" (computers) or "any" (default); senders 1 or 2 at once (default 1); big: the tap is the remote's one big key; audio: the sound goes with the picture (a camera's microphone, a shared tab's sound), played by Lamba at the Host's volume, default false.
+   * from: "camera" (phones), "screen" (computers) or "any" (default); senders 1 to 6 at once, a split of up to 6 parts (default 1; the plan's splitMax may allow fewer); heads: every FRONT camera is a round head floating over the pictures, taking no part (a back camera is a share and takes a part), default false; files: people may share a picture or a PDF (turned into page pictures on their own device, deleted when the share stops), default false; big: the tap is the remote's one big key; audio: the sound goes with the picture (a camera's microphone, a shared tab's sound), played by Lamba at the Host's volume, default false.
    * Resolves "on", or "none" when this screen cannot show it. live(false) ends it. */
-  live(o?: { from?: "camera" | "screen" | "any"; senders?: 1 | 2; big?: boolean; audio?: boolean; /** the phone's first camera: "front" (default, a face, mirrored) or "back" (a whiteboard, a page) */ camera?: "front" | "back" } | false): Promise<"on" | "none" | "off">;
-  /** Where Lamba draws the picture: the whole page by default (a half each with senders 2). from: one sender's id (from a "show"); left out: every sender. place(null) puts it back. */
+  live(o?: { from?: "camera" | "screen" | "any"; senders?: 1 | 2 | 3 | 4 | 5 | 6; heads?: boolean; files?: boolean; big?: boolean; audio?: boolean; /** the phone's first camera: "front" (default, a face, mirrored) or "back" (a whiteboard, a page) */ camera?: "front" | "back" } | false): Promise<"on" | "none" | "off">;
+  /** Where Lamba draws the picture: the whole page by default (a half each with senders 2, a grid of 3 to 6 parts with a thin black line between). from: one sender's id (from a "show"); left out: every sender. place(null) puts it back. */
   place(rect: LambaVideoRect | null, from?: string): LambaSDK;
 }
 
