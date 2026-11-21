@@ -11,6 +11,7 @@ https://lamba.tv/devs/docs/design/.
 - [ ] My app does one thing.
 - [ ] Words on the screen read from across the room.
 - [ ] Each Player's remote has one big main action, low on the screen.
+- [ ] Options (hand, motion or camera, difficulty, mode) are tiles in the Settings tray, never buttons on the remote; game actions stay on the remote.
 - [ ] The Host's phone is the live screen and one row of tiles (settings and actions), nothing in between.
 - [ ] Players get a full screen, realistic remote that never scrolls; no clip art, no emoji, no name step of its own.
 - [ ] The screen shows the game. Phones are the controls, not a copy of the screen.
