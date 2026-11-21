@@ -6444,6 +6444,7 @@ const fixHint = p => /phone design: .*(Send|Undo)/.test(p) ? "Delete your Send, 
   : /phone design: .*(dial|number setting)/.test(p) || /home-made slider/.test(p) ? "Delete the stepper, range or number input and put the value in lamba.json as a number setting (type \"number\", min, max, step): Lamba shows its dial."
   : /(part|group) label .* is long/.test(p) ? "Shorten the label to one or two words (about 12 letters): \"Photo 1\", not \"First picture\". Lamba shows it at its own size, so a long one makes the row swipe."
   : /phone design: .*(heading|profile|status)/.test(p) ? "Delete the heading, title, name corner and status line from phone.html: Lamba's chrome shows the app and who you are. Keep the page for the live action only."
+  : /phone design: .*row of option buttons/.test(p) ? "Move each option (hand, mode, level) into lamba.json as a choice or switch setting in a group with \"players\": true: Lamba shows it as a tile in the Settings tray, each Player's own. Keep only the main action on the remote."
   : /phone design: .*(tabs|grid)/.test(p) ? "Move the choices into a lamba.json group (\"players\": true for Players) with pictures on each choice: Lamba shows one row of tiles and one strip at a time."
   : /lamba\.json is not valid JSON/.test(p) ? "Fix the JSON on the line it names."
   : /no lamba\.json/.test(p) ? "Zip the folder that has lamba.json in it (or send lamba.json in files)."
@@ -7112,6 +7113,14 @@ function phoneDesign(src, f, error, warn) {
     if (bs.some(a => /\baria-(selected|pressed|current)\s*=\s*["'](true|page)["']|\bclass\s*=\s*["'][^"']*\b(active|selected|current|on)\b/i.test(a)) && !bs.some(a => /\bl-(key|big)\b/.test(a))) run = true;
   }
   if (tabby || run) W("a row of tabs. A tile in Lamba's drawer opens one strip with a pill of parts; no tabs.");
+  // a row of option buttons on the remote (Left hand / Motion / Camera, Easy / Hard): options are settings, in the Settings tray as
+  // tiles; the remote keeps only its main action (2026-11-21, Nagi on an outside app: "these need to be in the settings of the app")
+  const OPTISH = /^(left|right)([ -]?hand(ed)?)?$|^(motion|camera|touch|tilt|swipe|buttons?|easy|medium|normal|hard|expert|kids?|slow|fast|on|off|light|dark|mode|level|difficulty|speed|theme|colou?rs?)$|\b(mode|hand(ed)?|level|difficulty)$/i;
+  if (!run) for (const m of code.matchAll(/(?:<button\b[^>]*>[\s\S]*?<\/button>\s*){2,}/gi)) {
+    const bs = [...m[0].matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi)].filter(b => !/\bl-(key|big|act)/.test(b[1])).map(b => b[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const opt = bs.filter(l => OPTISH.test(l));
+    if (bs.length >= 2 && opt.length >= 2) { W("a row of option buttons (" + bs.slice(0, 4).join(", ") + "). Options are settings: put them in lamba.json (\"players\": true when each Player picks their own) and Lamba shows them as tiles in the Settings tray; the remote keeps only its main action."); break; }
+  }
   const cards = els.filter(e => !isL(e) && e.cls.some(c => /(^|-|_)(card|cards|choice|choices|thumb|swatch)$|^(card|choice|option|picture|pic)-?(card|item|tile)?$/.test(c)) && e.tag !== "p");
   const gridCss = /display\s*:\s*(inline-)?grid[^}]*grid-template-columns|grid-template-columns[^}]*display\s*:\s*grid/i.test(code) || /display\s*:\s*grid/i.test(code) && /grid-template-columns\s*:\s*(repeat|[^;]*\s[^;]*)/i.test(code);
   const imgs = (code.match(/<img\b/gi) || []).length;
